@@ -43,6 +43,16 @@ async function placeOrder() {
       <p v-if="confirmation.simulated" class="confirm-note">
         Demo mode — no order service connected yet.
       </p>
+
+      <!-- Real backend flow: hand off to the payment page (other team). -->
+      <a
+        v-if="confirmation.paymentRedirectUrl"
+        class="btn btn-primary btn-block confirm-pay"
+        :href="confirmation.paymentRedirectUrl"
+      >
+        Proceed to Payment →
+      </a>
+
       <button type="button" class="btn btn-ghost confirm-again" @click="confirmation = null">
         Start a new order
       </button>
@@ -156,6 +166,7 @@ async function placeOrder() {
 .confirm-head { margin: 0 0 4px; font-size: 1.2rem; font-weight: 800; color: var(--color-ink); }
 .confirm-id { margin: 0 0 4px; color: var(--color-body); font-size: 0.95rem; }
 .confirm-note { margin: 0 0 16px; color: var(--color-muted); font-size: 0.82rem; }
+.confirm-pay { margin-bottom: 10px; padding: 13px 0; }
 .confirm-again { width: 100%; }
 
 @media (max-width: 880px) {

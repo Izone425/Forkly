@@ -35,24 +35,40 @@ export function buildOrderPayload(lines) {
 /**
  * Submit an order.
  *
+ * The .NET Order service prices the cart server-side (from the menu service),
+ * creates a payment, and returns a `paymentRedirectUrl` pointing at the payment
+ * page. The UI uses that to hand the customer off to payment.
+ *
  * @param {object} payload  result of buildOrderPayload()
- * @returns {Promise<{ok: boolean, orderId: string, simulated: boolean}>}
+ * @returns {Promise<{ok: boolean, orderId: string, simulated: boolean, paymentRedirectUrl: string|null}>}
  */
 export async function submitOrder(payload) {
   // DEMO mode — no order service configured yet.
   if (!isOrderApiConfigured()) {
     const orderId = 'DEMO-' + Date.now().toString(36).toUpperCase()
-    return { ok: true, orderId, simulated: true }
+    return { ok: true, orderId, simulated: true, paymentRedirectUrl: null }
   }
 
-  // Real submission (REST gateway, or gRPC-web through an Envoy proxy).
+  // Real submission to the Order service REST API.
   const res = await fetch(`${config.orderApiBase}/v1/orders`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  if (!res.ok) throw new Error(`Order service responded ${res.status}`)
+  if (!res.ok) {
+    let message = `Order service responded ${res.status}`
+    try {
+      const err = await res.json()
+      if (err?.error) message = err.error
+    } catch { /* keep default */ }
+    throw new Error(message)
+  }
 
   const data = await res.json()
-  return { ok: true, orderId: data.orderId, simulated: false }
+  return {
+    ok: true,
+    orderId: data.orderId,
+    simulated: false,
+    paymentRedirectUrl: data.paymentRedirectUrl ?? null,
+  }
 }

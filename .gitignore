@@ -16,6 +16,10 @@ dist-ssr
 # Claude Code local settings
 .claude/
 
+# .NET build output
+[Bb]in/
+[Oo]bj/
+
 # Test / debug artifacts (Playwright) — root-level screenshots only.
 # (The real logo lives in public/assets/ and is NOT matched by this.)
 .playwright-mcp/

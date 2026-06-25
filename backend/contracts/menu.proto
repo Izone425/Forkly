@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+option csharp_namespace = "Forkly.Contracts.Menu";
+package forkly.menu.v1;
+
+// Menu service — OWNED BY the menu team (amirul-menu).
+// The Order service is a CLIENT of this contract. Until the real service
+// exists, Order uses a mock that returns the same shape.
+service MenuService {
+  // Full menu (optionally filtered later).
+  rpc GetMenu (GetMenuRequest) returns (GetMenuResponse);
+  // A single item — used by Order to price/validate a cart line.
+  rpc GetItem (GetItemRequest) returns (MenuItem);
+}
+
+message GetMenuRequest {}
+
+message GetItemRequest {
+  string id = 1;
+}
+
+message MenuItem {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  // Price in the smallest currency unit (cents). RM10.00 -> 1000.
+  // Integer money avoids floating-point rounding across services.
+  int32 price_cents = 4;
+  string category = 5;
+  string emoji = 6;
+  bool available = 7;
+}
+
+message GetMenuResponse {
+  repeated MenuItem items = 1;
+}
