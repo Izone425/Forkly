@@ -1,10 +1,13 @@
 <script setup>
 import { ref } from 'vue'
 import { useCart } from '../stores/cart.js'
+import { useDeliveryAddress } from '../stores/address.js'
+import DeliveryAddressSection from './DeliveryAddressSection.vue'
 import { buildOrderPayload, submitOrder, isOrderApiConfigured } from '../services/orderGateway.js'
 import { config } from '../config.js'
 
 const cart = useCart()
+const { state: address } = useDeliveryAddress()
 
 const placing = ref(false)
 const confirmation = ref(null) // { orderId, paymentRedirectUrl, simulated }
@@ -20,7 +23,8 @@ async function placeOrder() {
   error.value = ''
   confirmation.value = null
   try {
-    const payload = buildOrderPayload(cart.lines.value)
+    // Snapshot the chosen delivery address into the order (full object, not id).
+    const payload = buildOrderPayload(cart.lines.value, address.selected)
     const result = await submitOrder(payload)
     cart.clear()
 
@@ -89,6 +93,9 @@ async function placeOrder() {
           <div><dt>SST (6%)</dt><dd>{{ money(cart.tax.value) }}</dd></div>
           <div class="grand"><dt>Total</dt><dd>{{ money(cart.total.value) }}</dd></div>
         </dl>
+
+        <!-- Delivery address: below total, above the place/payment button. -->
+        <DeliveryAddressSection />
 
         <p v-if="error" class="cart-error" role="alert">{{ error }}</p>
 

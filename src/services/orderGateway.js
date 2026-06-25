@@ -17,9 +17,12 @@ export function isOrderApiConfigured() {
 
 /**
  * Turn the reactive cart into a plain, serializable payload.
+ *
  * @param {Array<{item: object, qty: number}>} lines
+ * @param {object|null} [deliveryAddress] full address snapshot stored with the
+ *   order (User Service owns the address book; the order keeps a copy).
  */
-export function buildOrderPayload(lines) {
+export function buildOrderPayload(lines, deliveryAddress = null) {
   return {
     source: 'forkly-web',
     currency: 'MYR',
@@ -29,6 +32,9 @@ export function buildOrderPayload(lines) {
       unitPrice: l.item.price,
       quantity: l.qty,
     })),
+    // Snapshot of the chosen delivery address (or null). The current backend
+    // ignores unknown fields; the order service will persist this later.
+    deliveryAddress: deliveryAddress || null,
   }
 }
 
