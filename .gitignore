@@ -1,0 +1,23 @@
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.local
+.env.*.local
+
+# Editor / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.log
+
+# Claude Code local settings
+.claude/
+
+# Test / debug artifacts (Playwright)
+.playwright-mcp/
+forkly-landing.png
+forkly-with-logo.png
+forkly-transparent-logo.png
