@@ -3,11 +3,31 @@ import { computed, onMounted } from 'vue'
 import AppHeader from '../components/AppHeader.vue'
 import MenuItemCard from '../components/MenuItemCard.vue'
 import CartSummary from '../components/CartSummary.vue'
+import OrderHistoryList from '../components/OrderHistoryList.vue'
 import { useMenu } from '../stores/menu.js'
+import { useCart } from '../stores/cart.js'
 
 const { state: menu, load } = useMenu()
+const cart = useCart()
 
 onMounted(load)
+
+// Reorder: pre-fill the current cart from a previous order, then scroll up to
+// the Current Order section. The cart behaves normally afterwards (edit/remove/
+// add). We resolve each line against the live menu so prices stay authoritative
+// and the menu cards reflect the quantity; we fall back to the historical line.
+function reorder(order) {
+  for (const line of order.orderItems) {
+    const menuItem = menu.items.find((m) => m.id === line.menuId)
+    const item = menuItem ?? {
+      id: line.menuId,
+      name: line.menuName,
+      price: line.price,
+    }
+    cart.addQuantity(item, line.quantity)
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
 
 // Group menu items by category, preserving first-seen order.
 const grouped = computed(() => {
@@ -49,6 +69,9 @@ const grouped = computed(() => {
         <!-- Cart -->
         <CartSummary class="cart-col" />
       </div>
+
+      <!-- Section 2: Order History. Reorder pre-fills the cart above. -->
+      <OrderHistoryList @reorder="reorder" />
     </main>
   </div>
 </template>

@@ -25,6 +25,15 @@ export function useCart() {
     if (line) line.qty += 1
   }
 
+  // Add an item with a specific quantity (merges into an existing line).
+  // Used by Reorder to pre-fill the cart from a previous order.
+  function addQuantity(item, qty) {
+    const n = Math.max(1, Math.floor(qty || 1))
+    const line = state.lines[item.id]
+    if (line) line.qty += n
+    else state.lines[item.id] = { item, qty: n }
+  }
+
   function decrement(id) {
     const line = state.lines[id]
     if (!line) return
@@ -53,7 +62,7 @@ export function useCart() {
 
   return {
     lines, count, isEmpty, subtotal, tax, total,
-    add, increment, decrement, remove, clear, qtyOf,
+    add, addQuantity, increment, decrement, remove, clear, qtyOf,
     SST_RATE,
   }
 }
