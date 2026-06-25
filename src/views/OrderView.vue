@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import AppHeader from '../components/AppHeader.vue'
 import MenuItemCard from '../components/MenuItemCard.vue'
 import CartSummary from '../components/CartSummary.vue'
@@ -12,6 +12,8 @@ import { useToast } from '../stores/toast.js'
 const { state: menu, load } = useMenu()
 const cart = useCart()
 const toast = useToast()
+
+const gridRef = ref(null)
 
 onMounted(load)
 
@@ -29,7 +31,8 @@ function reorder(order) {
 
   cart.mergeReorder(reorderItems, (id) => menu.items.find((m) => m.id === id))
 
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+  // Scroll down to the cart summary (it now sits below Most Recent Orders).
+  gridRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   toast.show('Previous order added to cart')
 }
 
@@ -59,7 +62,10 @@ const grouped = computed(() => {
         <p class="order-sub">Browse the menu, add items to your cart, and check out.</p>
       </div>
 
-      <div class="order-grid">
+      <!-- Most Recent Orders (top). Reorder merges into the cart below. -->
+      <OrderHistoryList @reorder="reorder" />
+
+      <div class="order-grid" ref="gridRef">
         <!-- Menu -->
         <section class="menu-col" aria-label="Menu">
           <div v-for="group in grouped" :key="group.category" class="menu-group">
@@ -73,9 +79,6 @@ const grouped = computed(() => {
         <!-- Cart -->
         <CartSummary class="cart-col" />
       </div>
-
-      <!-- Section 2: Order History. Reorder merges into the cart above. -->
-      <OrderHistoryList @reorder="reorder" />
     </main>
 
     <ToastHost />
@@ -95,6 +98,7 @@ const grouped = computed(() => {
   grid-template-columns: 1fr 360px;
   align-items: start;
   gap: 32px;
+  scroll-margin-top: 90px; /* offset sticky header when scrolled to after reorder */
 }
 
 .menu-group { margin-bottom: 32px; }

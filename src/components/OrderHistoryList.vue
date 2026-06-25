@@ -18,9 +18,11 @@ onMounted(async () => {
   try {
     // userId comes from the signed-in profile when available (auth handled by
     // izone-user-management-FE). Falls back to all mock orders during dev.
-    orders.value = await getOrderHistory(auth.user?.id)
+    // Show only the 3 most recent (service already returns newest first).
+    const all = await getOrderHistory(auth.user?.id)
+    orders.value = all.slice(0, 3)
   } catch (e) {
-    error.value = e?.message || 'Could not load order history.'
+    error.value = e?.message || 'Could not load recent orders.'
   } finally {
     loading.value = false
   }
@@ -41,8 +43,8 @@ function reorder(order) {
 
 <template>
   <section class="history">
-    <h2 class="history-title">Order History</h2>
-    <p class="history-sub">Your previous orders — view details or reorder in one tap.</p>
+    <h2 class="history-title">Most Recent Orders</h2>
+    <p class="history-sub">Your latest orders — view details or reorder in one tap.</p>
 
     <p v-if="loading" class="history-state">Loading your orders…</p>
     <p v-else-if="error" class="history-state">{{ error }}</p>
@@ -65,7 +67,7 @@ function reorder(order) {
 </template>
 
 <style scoped>
-.history { margin-top: 48px; }
+.history { margin: 0 0 40px; }
 .history-title {
   margin: 0 0 4px;
   font-size: clamp(1.4rem, 3.5vw, 1.8rem);
