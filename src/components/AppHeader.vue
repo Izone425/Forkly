@@ -14,12 +14,23 @@ const { state: auth, isLoggedIn, initials, logout } = useAuth()
 <template>
   <header class="site-header">
     <div class="container header-inner">
-      <!-- Section nav (left). Anchors smooth-scroll; Order opens the order page. -->
-      <nav class="header-nav" aria-label="Sections">
-        <a href="#about" class="nav-link">About Us</a>
-        <a href="#menu" class="nav-link">Our Menu</a>
-        <RouterLink to="/order" class="nav-link">Order</RouterLink>
-        <a href="#contact" class="nav-link">Contact Us</a>
+      <!-- Section menu (left): a hamburger button that reveals the options on
+           hover. Anchors smooth-scroll; Order opens the order page. -->
+      <nav class="header-menu" aria-label="Sections">
+        <button type="button" class="menu-btn" aria-label="Menu" aria-haspopup="true">
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+        </button>
+
+        <div class="menu-dropdown">
+          <div class="menu-card">
+            <a href="#about" class="menu-item">About Us</a>
+            <a href="#menu" class="menu-item">Our Menu</a>
+            <RouterLink to="/order" class="menu-item">Order</RouterLink>
+            <a href="#contact" class="menu-item">Contact Us</a>
+          </div>
+        </div>
       </nav>
 
       <!-- Logo (centered). The transparent logo already includes the wordmark. -->
@@ -66,21 +77,73 @@ const { state: auth, isLoggedIn, initials, logout } = useAuth()
   padding-bottom: 18px;
 }
 
-.header-nav {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  justify-self: start;
+.header-menu { position: relative; justify-self: start; }
+
+/* Hamburger button (3 lines). */
+.menu-btn {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 50px;
+  height: 46px;
+  padding: 0 13px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease;
 }
-.nav-link {
+.menu-bar {
+  height: 2.5px;
+  border-radius: 2px;
+  background: var(--color-ink);
+  transition: background 0.15s ease;
+}
+.header-menu:hover .menu-btn,
+.header-menu:focus-within .menu-btn { border-color: var(--color-primary); }
+.header-menu:hover .menu-bar,
+.header-menu:focus-within .menu-bar { background: var(--color-primary); }
+
+/* Dropdown: hidden until the menu is hovered/focused. The outer wrapper keeps a
+   transparent bridge (padding-top) so moving the pointer onto it stays hovered. */
+.menu-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  padding-top: 8px;
+  min-width: 200px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
+  z-index: 20;
+}
+.header-menu:hover .menu-dropdown,
+.header-menu:focus-within .menu-dropdown {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+.menu-card {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+}
+.menu-item {
   font-weight: 600;
-  font-size: 0.98rem;
+  font-size: 0.96rem;
   color: var(--color-body);
-  padding: 9px 14px;
-  border-radius: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
   transition: color 0.15s ease, background 0.15s ease;
 }
-.nav-link:hover { color: var(--color-primary); background: var(--color-primary-soft); }
+.menu-item:hover { color: var(--color-primary); background: var(--color-primary-soft); }
 
 .brand-link { justify-self: center; display: inline-flex; }
 
@@ -122,10 +185,6 @@ const { state: auth, isLoggedIn, initials, logout } = useAuth()
 }
 .profile-logout:hover { border-color: var(--color-primary); color: var(--color-primary); }
 
-/* On narrow screens drop the text nav; logo stays centered, login on the right. */
-@media (max-width: 860px) {
-  .header-nav { display: none; }
-}
 @media (max-width: 720px) {
   .header-inner { padding-top: 14px; padding-bottom: 14px; }
   .header-login { padding: 11px 26px; font-size: 1rem; }
