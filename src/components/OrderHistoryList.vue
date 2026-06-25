@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import OrderHistoryCard from './OrderHistoryCard.vue'
 import OrderDetailsModal from './OrderDetailsModal.vue'
 import { getOrderHistory } from '../services/orderHistoryApi.js'
@@ -7,24 +7,43 @@ import { useAuth } from '../stores/auth.js'
 
 const emit = defineEmits(['reorder'])
 
-const { state: auth } = useAuth()
+const { state: auth, isLoggedIn } = useAuth()
 
 const orders = ref([])
 const loading = ref(true)
 const error = ref('')
 const selectedOrder = ref(null)
+const loaded = ref(false)
 
-onMounted(async () => {
+// Recent orders belong to a specific user, so they are only loaded once signed
+// in (via the IZZUWAN user module). Guests see nothing here.
+async function loadRecentOrders() {
+  if (!isLoggedIn.value || loaded.value) return
+  loading.value = true
+  error.value = ''
   try {
-    // userId comes from the signed-in profile when available (auth handled by
-    // izone-user-management-FE). Falls back to all mock orders during dev.
-    // Show only the 3 most recent (service already returns newest first).
+    // TODO: real call once available — GET /orders/user/{userId}/recent
+    // (from the order service, keyed by the signed-in user's id).
     const all = await getOrderHistory(auth.user?.id)
-    orders.value = all.slice(0, 3)
+    orders.value = all.slice(0, 3) // 3 most recent (service returns newest first)
+    loaded.value = true
   } catch (e) {
     error.value = e?.message || 'Could not load recent orders.'
   } finally {
     loading.value = false
+  }
+}
+
+onMounted(loadRecentOrders)
+
+// Load when the user signs in; clear when they sign out.
+watch(isLoggedIn, (signedIn) => {
+  if (signedIn) {
+    loadRecentOrders()
+  } else {
+    orders.value = []
+    loaded.value = false
+    selectedOrder.value = null
   }
 })
 
@@ -42,7 +61,8 @@ function reorder(order) {
 </script>
 
 <template>
-  <section class="history">
+  <!-- Only shown to signed-in users — recent orders come from their profile. -->
+  <section v-if="isLoggedIn" class="history">
     <h2 class="history-title">Most Recent Orders</h2>
     <p class="history-sub">Your latest orders — view details or reorder in one tap.</p>
 

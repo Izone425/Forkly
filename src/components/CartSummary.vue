@@ -128,8 +128,9 @@ async function placeOrder() {
           <div class="grand"><dt>Total</dt><dd>{{ money(cart.total.value) }}</dd></div>
         </dl>
 
-        <!-- Delivery address: below total, above the place/payment button. -->
-        <DeliveryAddressSection />
+        <!-- Delivery address comes from the user's profile (IZZUWAN), so it only
+             shows once signed in — below total, above the place/payment button. -->
+        <DeliveryAddressSection v-if="isLoggedIn" />
 
         <p v-if="error" class="cart-error" role="alert">{{ error }}</p>
 
