@@ -71,16 +71,22 @@ const logoSrc = '/assets/forkly-transparent-logo.png'
 .brand-name { font-size: 1.2rem; font-weight: 800; color: var(--color-ink); letter-spacing: -0.2px; }
 .brand-tagline { font-size: 0.8rem; color: var(--color-muted); font-weight: 500; }
 
-/* Large lockup for the landing header. */
+/* Large lockup for the landing header. The transparent logo already contains
+   the "Forkly" wordmark, so the box chrome is dropped and the logo blends
+   straight into the white header. */
 .size-lg { gap: 18px; }
-.size-lg .logo-box { min-width: 68px; height: 68px; border-radius: 16px; }
-.size-lg .logo-img { max-height: 48px; max-width: 150px; }
-.size-lg .brand-name { font-size: 1.7rem; }
+.size-lg .logo-box {
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 0;
+}
+.size-lg .logo-img { max-height: 60px; max-width: 240px; }
 
 @media (max-width: 720px) {
   .brand-tagline { display: none; }
-  .size-lg .logo-box { min-width: 58px; height: 58px; }
-  .size-lg .logo-img { max-height: 40px; }
-  .size-lg .brand-name { font-size: 1.4rem; }
+  .size-lg .logo-img { max-height: 46px; }
 }
 </style>

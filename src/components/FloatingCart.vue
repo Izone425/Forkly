@@ -22,7 +22,7 @@ function openOrder() {
 <style scoped>
 .cart-fab {
   position: fixed;
-  left: 24px;
+  right: 24px;
   bottom: 24px;
   z-index: 50;
   width: 62px;
@@ -61,6 +61,6 @@ function openOrder() {
 }
 
 @media (max-width: 720px) {
-  .cart-fab { left: 16px; bottom: 16px; width: 56px; height: 56px; }
+  .cart-fab { right: 16px; bottom: 16px; width: 56px; height: 56px; }
 }
 </style>

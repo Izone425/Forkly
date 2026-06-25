@@ -4,7 +4,7 @@
   <section class="section about" id="about">
     <div class="container about-grid">
       <div class="about-copy">
-        <h2 class="about-title">About Forkly</h2>
+        <h2 class="about-title">About Us</h2>
         <p class="about-text">
           Forkly is a single-restaurant ordering platform designed to simplify the
           food ordering experience.
@@ -15,12 +15,8 @@
         </p>
       </div>
 
-      <!-- Decorative visual (background-image avoids static asset import). -->
-      <div
-        class="about-media"
-        role="img"
-        aria-label="Browsing the Forkly menu on a tablet"
-      ></div>
+      <!-- Forkly logo (background-image avoids a static asset import). -->
+      <div class="about-logo" role="img" aria-label="Forkly logo"></div>
     </div>
   </section>
 </template>
@@ -32,9 +28,10 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-items: center;
-  gap: 56px;
+  gap: 48px;
 }
 
+.about-copy { text-align: center; }
 .about-title {
   margin: 0 0 18px;
   font-size: clamp(1.7rem, 4vw, 2.1rem);
@@ -48,17 +45,14 @@
 }
 .about-text:last-child { margin-bottom: 0; }
 
-.about-media {
-  min-height: 360px;
-  border-radius: var(--radius);
-  background: url('/assets/image3.jpg') center / cover no-repeat;
-  box-shadow: var(--shadow-lg);
-  border: 1px solid var(--color-border);
+/* Transparent logo, shown whole (contain) and blended into the section. */
+.about-logo {
+  min-height: 220px;
+  background: url('/assets/forkly-transparent-logo.png') center / contain no-repeat;
 }
 
 @media (max-width: 820px) {
-  .about-grid { grid-template-columns: 1fr; gap: 36px; }
-  .about-copy { text-align: center; }
-  .about-media { min-height: 240px; order: -1; }
+  .about-grid { grid-template-columns: 1fr; gap: 24px; }
+  .about-logo { min-height: 160px; order: -1; }
 }
 </style>

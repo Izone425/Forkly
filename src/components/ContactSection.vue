@@ -12,7 +12,7 @@
         </li>
         <li>
           <span class="contact-icon" aria-hidden="true">📞</span>
-          <a href="tel:0380709933">03-80709933</a>
+          <a href="tel:0395438888">03-95438888</a>
         </li>
       </ul>
       <p class="contact-team">Forkly Support Team</p>
