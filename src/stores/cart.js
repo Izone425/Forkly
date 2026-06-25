@@ -1,18 +1,52 @@
 // =========================================================
-// Forkly — cart store (client-side only)
+// Forkly — cart store (client-side, persisted)
 //
 // A tiny shared reactive store. State lives at module scope so every component
-// that calls useCart() reads and mutates the SAME cart. No backend, no
-// persistence — this is the in-page ordering state only.
+// that calls useCart() reads and mutates the SAME cart.
+//
+// The cart is PERSISTED to localStorage so it survives page refreshes, the
+// login modal opening/closing, and the (external) login process — the guest
+// cart is never lost. After login it is merged into the user's cart.
 // =========================================================
 
-import { reactive, computed } from 'vue'
+import { reactive, computed, watch } from 'vue'
 import { mergeCartWithReorderItems } from '../utils/cartMerge.js'
 
 const SST_RATE = 0.06 // 6% SST (Malaysia) — display only.
+const STORAGE_KEY = 'forkly:cart'
 
 // id -> { item, qty }
 const state = reactive({ lines: {} })
+
+// --- persistence ---------------------------------------------------------
+function restore() {
+  try {
+    if (typeof localStorage === 'undefined') return
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return
+    const saved = JSON.parse(raw)
+    const lines = {}
+    for (const l of saved) {
+      if (l?.item?.id) lines[l.item.id] = { item: l.item, qty: l.qty }
+    }
+    state.lines = lines
+  } catch {
+    /* ignore corrupt storage */
+  }
+}
+
+function persist() {
+  try {
+    if (typeof localStorage === 'undefined') return
+    const data = Object.values(state.lines).map((l) => ({ item: l.item, qty: l.qty }))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+  } catch {
+    /* storage full / unavailable — non-fatal */
+  }
+}
+
+restore()
+watch(() => state.lines, persist, { deep: true })
 
 export function useCart() {
   function add(item) {

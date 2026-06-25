@@ -1,21 +1,55 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useCart } from '../stores/cart.js'
 import { useDeliveryAddress } from '../stores/address.js'
+import { useAuth } from '../stores/auth.js'
+import { openLoginDrawer } from '../services/authBridge.js'
 import DeliveryAddressSection from './DeliveryAddressSection.vue'
 import { buildOrderPayload, submitOrder, isOrderApiConfigured } from '../services/orderGateway.js'
 import { config } from '../config.js'
 
 const cart = useCart()
 const { state: address } = useDeliveryAddress()
+const { isLoggedIn } = useAuth()
 
 const placing = ref(false)
 const confirmation = ref(null) // { orderId, paymentRedirectUrl, simulated }
 const error = ref('')
+const pendingCheckout = ref(false)
 
 function money(n) {
   return 'RM' + n.toFixed(2)
 }
+
+// Checkout entry point. Guests may build a cart freely; authentication is only
+// required HERE, at checkout. If not signed in, ask the IZZUWAN module to open
+// its login drawer and resume automatically once login succeeds.
+function checkout() {
+  if (cart.isEmpty.value || placing.value) return
+
+  if (!isLoggedIn.value) {
+    pendingCheckout.value = true
+    openLoginDrawer() // external login UI — we never render it here
+    return
+  }
+
+  placeOrder()
+}
+
+// When the IZZUWAN module reports a successful login, merge the guest cart into
+// the user's cart (never overwrite) and continue the checkout that was pending.
+watch(isLoggedIn, (loggedIn) => {
+  if (!loggedIn || !pendingCheckout.value) return
+  pendingCheckout.value = false
+
+  // TODO: fetch the user's server-side cart and merge it in (never overwrite):
+  //   const userCart = await fetchUserCart(user.id)   // from IZZUWAN/server
+  //   cart.mergeReorder(userCart)                      // pure merge: +qty or add
+  // The guest cart is already persisted (localStorage), so it is preserved.
+  cart.mergeReorder([], null)
+
+  placeOrder()
+})
 
 async function placeOrder() {
   if (cart.isEmpty.value || placing.value) return
@@ -103,12 +137,17 @@ async function placeOrder() {
           type="button"
           class="btn btn-primary btn-block place-btn"
           :disabled="placing"
-          @click="placeOrder"
+          @click="checkout"
         >
-          {{ placing ? 'Placing…' : `Place Order · ${money(cart.total.value)}` }}
+          <template v-if="placing">Placing…</template>
+          <template v-else-if="!isLoggedIn">Sign in to Checkout · {{ money(cart.total.value) }}</template>
+          <template v-else>Place Order · {{ money(cart.total.value) }}</template>
         </button>
 
-        <p v-if="!isOrderApiConfigured()" class="cart-hint">
+        <p v-if="!isLoggedIn" class="cart-hint">
+          You're browsing as a guest — sign in at checkout to place your order.
+        </p>
+        <p v-else-if="!isOrderApiConfigured()" class="cart-hint">
           Orders run in demo mode until the order service is connected.
         </p>
       </template>

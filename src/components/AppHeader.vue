@@ -1,7 +1,7 @@
 <script setup>
 import { RouterLink } from 'vue-router'
 import BrandLogo from './BrandLogo.vue'
-import { useLoginAction } from '../composables/useLoginAction.js'
+import { openLoginDrawer } from '../services/authBridge.js'
 import { useAuth } from '../stores/auth.js'
 import { useCart } from '../stores/cart.js'
 
@@ -13,7 +13,7 @@ defineProps({
   showCart: { type: Boolean, default: false },
 })
 
-const { onLogin } = useLoginAction()
+// Login UI is owned by the IZZUWAN module — we only open its drawer (no redirect).
 const { state: auth, isLoggedIn, initials, logout } = useAuth()
 const { count } = useCart()
 </script>
@@ -62,7 +62,7 @@ const { count } = useCart()
             v-if="!isLoggedIn"
             type="button"
             class="btn btn-primary header-login"
-            @click="onLogin()"
+            @click="openLoginDrawer()"
           >
             Login
           </button>
