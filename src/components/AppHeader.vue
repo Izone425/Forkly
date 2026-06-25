@@ -3,57 +3,76 @@ import { RouterLink } from 'vue-router'
 import BrandLogo from './BrandLogo.vue'
 import { useLoginAction } from '../composables/useLoginAction.js'
 import { useAuth } from '../stores/auth.js'
+import { useCart } from '../stores/cart.js'
 
-// Single login entry point for the whole app. Hands off to the user-management
-// service (izone-user-management-FE). When it returns a signed-in user, the
-// header shows the profile instead (see auth store).
+// Shared header for the landing and order pages.
+//  - showLogin: show the Login button / profile (landing).
+//  - showCart:  show the cart indicator (order page).
+defineProps({
+  showLogin: { type: Boolean, default: true },
+  showCart: { type: Boolean, default: false },
+})
+
 const { onLogin } = useLoginAction()
 const { state: auth, isLoggedIn, initials, logout } = useAuth()
+const { count } = useCart()
 </script>
 
 <template>
   <header class="site-header">
     <div class="container header-inner">
-      <!-- Section menu (left): a hamburger button that reveals the options on
-           hover. Anchors smooth-scroll; Order opens the order page. -->
-      <nav class="header-menu" aria-label="Sections">
-        <button type="button" class="menu-btn" aria-label="Menu" aria-haspopup="true">
-          <span class="menu-bar"></span>
-          <span class="menu-bar"></span>
-          <span class="menu-bar"></span>
-        </button>
+      <!-- Left: hamburger menu + logo, side by side. -->
+      <div class="header-left">
+        <nav class="header-menu" aria-label="Sections">
+          <button type="button" class="menu-btn" aria-label="Menu" aria-haspopup="true">
+            <span class="menu-bar"></span>
+            <span class="menu-bar"></span>
+            <span class="menu-bar"></span>
+          </button>
 
-        <div class="menu-dropdown">
-          <div class="menu-card">
-            <a href="#about" class="menu-item">About Us</a>
-            <a href="#menu" class="menu-item">Our Menu</a>
-            <RouterLink to="/order" class="menu-item">Order</RouterLink>
-            <a href="#contact" class="menu-item">Contact Us</a>
+          <div class="menu-dropdown">
+            <div class="menu-card">
+              <RouterLink to="/#about" class="menu-item">About Us</RouterLink>
+              <RouterLink to="/#menu" class="menu-item">Our Menu</RouterLink>
+              <RouterLink to="/order" class="menu-item">Order</RouterLink>
+              <RouterLink to="/#contact" class="menu-item">Contact Us</RouterLink>
+            </div>
           </div>
-        </div>
-      </nav>
+        </nav>
 
-      <!-- Logo (centered). The transparent logo already includes the wordmark. -->
-      <a href="#" class="brand-link" aria-label="Forkly home">
-        <BrandLogo size="lg" :show-text="false" />
-      </a>
+        <RouterLink to="/" class="brand-link" aria-label="Forkly home">
+          <BrandLogo size="lg" :show-text="false" />
+        </RouterLink>
+      </div>
 
-      <!-- Login / profile (right). -->
+      <!-- Right: cart (order page) and/or Login / profile (landing). -->
       <div class="header-end">
-        <button
-          v-if="!isLoggedIn"
-          type="button"
-          class="btn btn-primary header-login"
-          @click="onLogin()"
+        <div
+          v-if="showCart"
+          class="header-cart"
+          :class="{ active: count > 0 }"
+          aria-live="polite"
         >
-          Login
-        </button>
-
-        <div v-else class="profile">
-          <span class="profile-avatar" aria-hidden="true">{{ initials }}</span>
-          <span class="profile-name">{{ auth.user.name }}</span>
-          <button type="button" class="profile-logout" @click="logout">Logout</button>
+          <span class="header-cart-icon" aria-hidden="true">🛒</span>
+          <span>{{ count }} {{ count === 1 ? 'item' : 'items' }}</span>
         </div>
+
+        <template v-if="showLogin">
+          <button
+            v-if="!isLoggedIn"
+            type="button"
+            class="btn btn-primary header-login"
+            @click="onLogin()"
+          >
+            Login
+          </button>
+
+          <div v-else class="profile">
+            <span class="profile-avatar" aria-hidden="true">{{ initials }}</span>
+            <span class="profile-name">{{ auth.user.name }}</span>
+            <button type="button" class="profile-logout" @click="logout">Logout</button>
+          </div>
+        </template>
       </div>
     </div>
   </header>
@@ -69,15 +88,17 @@ const { state: auth, isLoggedIn, initials, logout } = useAuth()
   border-bottom: 1px solid var(--color-border);
 }
 .header-inner {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr; /* nav | logo | login */
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
   padding-top: 18px;
   padding-bottom: 18px;
 }
 
-.header-menu { position: relative; justify-self: start; }
+.header-left { display: flex; align-items: center; gap: 18px; }
+
+.header-menu { position: relative; }
 
 /* Hamburger button (3 lines). */
 .menu-btn {
@@ -106,8 +127,8 @@ const { state: auth, isLoggedIn, initials, logout } = useAuth()
 .header-menu:hover .menu-bar,
 .header-menu:focus-within .menu-bar { background: var(--color-primary); }
 
-/* Dropdown: hidden until the menu is hovered/focused. The outer wrapper keeps a
-   transparent bridge (padding-top) so moving the pointer onto it stays hovered. */
+/* Dropdown: hidden until the menu is hovered/focused. The wrapper keeps a
+   transparent bridge (padding-top) so moving onto it stays hovered. */
 .menu-dropdown {
   position: absolute;
   top: 100%;
@@ -145,9 +166,26 @@ const { state: auth, isLoggedIn, initials, logout } = useAuth()
 }
 .menu-item:hover { color: var(--color-primary); background: var(--color-primary-soft); }
 
-.brand-link { justify-self: center; display: inline-flex; }
+.brand-link { display: inline-flex; }
 
-.header-end { justify-self: end; }
+.header-end { display: flex; align-items: center; gap: 14px; }
+
+/* Cart indicator (order page). */
+.header-cart {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-body);
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
+}
+.header-cart.active { color: var(--color-primary); border-color: #cdd9f5; }
+.header-cart-icon { font-size: 1.1rem; }
 
 /* Bigger, prominent login button. */
 .header-login {
@@ -155,11 +193,7 @@ const { state: auth, isLoggedIn, initials, logout } = useAuth()
   padding: 13px 36px;
 }
 
-.profile {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-}
+.profile { display: inline-flex; align-items: center; gap: 12px; }
 .profile-avatar {
   width: 42px;
   height: 42px;
@@ -187,6 +221,7 @@ const { state: auth, isLoggedIn, initials, logout } = useAuth()
 
 @media (max-width: 720px) {
   .header-inner { padding-top: 14px; padding-bottom: 14px; }
+  .header-left { gap: 12px; }
   .header-login { padding: 11px 26px; font-size: 1rem; }
   .profile-name { display: none; }
 }

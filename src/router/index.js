@@ -17,7 +17,13 @@ const routes = [
 export default createRouter({
   history: createWebHistory(),
   routes,
-  scrollBehavior() {
+  scrollBehavior(to, from, savedPosition) {
+    // Scroll to an #anchored section (offset for the sticky header). Works even
+    // when navigating from another page (e.g. Order -> landing #about).
+    if (to.hash) {
+      return { el: to.hash, top: 90, behavior: 'smooth' }
+    }
+    if (savedPosition) return savedPosition
     return { top: 0 }
   },
 })

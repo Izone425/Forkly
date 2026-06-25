@@ -23,6 +23,11 @@ export const config = {
   // order page accepts orders in a local "demo" mode (no network call).
   orderApiBase: (import.meta.env.VITE_ORDER_API_BASE || '').trim(),
 
+  // Whether the PAYMENT service/page is ready. When true, placing an order
+  // auto-redirects to the payment page. Until the payment team (other branch)
+  // ships, keep this false: the order is created and shown as awaiting payment.
+  paymentReady: (import.meta.env.VITE_PAYMENT_READY || '').trim() === 'true',
+
   // Where the auth service should send the user back to after login.
   // Defaults to this app's own origin.
   appOrigin:

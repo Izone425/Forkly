@@ -31,13 +31,14 @@
   gap: 48px;
 }
 
-.about-copy { text-align: center; }
+.about-copy { text-align: justify; }
 .about-title {
   margin: 0 0 18px;
   font-size: clamp(1.7rem, 4vw, 2.1rem);
   font-weight: 800;
   color: var(--color-ink);
   letter-spacing: -0.4px;
+  text-align: center; /* heading stays centered; paragraphs justified */
 }
 .about-text {
   margin: 0 0 16px;

@@ -2,11 +2,12 @@
 import { ref } from 'vue'
 import { useCart } from '../stores/cart.js'
 import { buildOrderPayload, submitOrder, isOrderApiConfigured } from '../services/orderGateway.js'
+import { config } from '../config.js'
 
 const cart = useCart()
 
 const placing = ref(false)
-const confirmation = ref(null) // { orderId, simulated }
+const confirmation = ref(null) // { orderId, paymentRedirectUrl, simulated }
 const error = ref('')
 
 function money(n) {
@@ -21,8 +22,17 @@ async function placeOrder() {
   try {
     const payload = buildOrderPayload(cart.lines.value)
     const result = await submitOrder(payload)
-    confirmation.value = result
     cart.clear()
+
+    // Auto-proceed to payment once the payment service is ready. The order
+    // reference travels in the redirect (and onward to the kitchen).
+    if (config.paymentReady && result.paymentRedirectUrl) {
+      window.location.assign(result.paymentRedirectUrl)
+      return
+    }
+
+    // Payment not wired up yet: show the order as awaiting payment.
+    confirmation.value = result
   } catch (e) {
     error.value = e?.message || 'Could not place the order. Please try again.'
   } finally {
@@ -35,27 +45,23 @@ async function placeOrder() {
   <aside class="cart">
     <h2 class="cart-title">Your Order</h2>
 
-    <!-- Confirmation after a successful place-order. -->
+    <!-- After placing: order is created and awaiting payment. No buttons —
+         payment proceeds automatically once that service is ready, and a new
+         order can't start until the current one is paid. -->
     <div v-if="confirmation" class="confirm" role="status">
       <div class="confirm-check" aria-hidden="true">✓</div>
       <p class="confirm-head">Order placed!</p>
       <p class="confirm-id">Reference: <strong>{{ confirmation.orderId }}</strong></p>
-      <p v-if="confirmation.simulated" class="confirm-note">
-        Demo mode — no order service connected yet.
+
+      <div class="confirm-pending">
+        <span class="confirm-spinner" aria-hidden="true"></span>
+        <span>Proceeding to payment…</span>
+      </div>
+
+      <p class="confirm-note">
+        The payment service isn't connected yet. This reference is reserved and
+        will be passed to payment, then on to the kitchen.
       </p>
-
-      <!-- Real backend flow: hand off to the payment page (other team). -->
-      <a
-        v-if="confirmation.paymentRedirectUrl"
-        class="btn btn-primary btn-block confirm-pay"
-        :href="confirmation.paymentRedirectUrl"
-      >
-        Proceed to Payment →
-      </a>
-
-      <button type="button" class="btn btn-ghost confirm-again" @click="confirmation = null">
-        Start a new order
-      </button>
     </div>
 
     <template v-else>
@@ -164,10 +170,32 @@ async function placeOrder() {
   border-radius: 50%; font-size: 1.6rem; font-weight: 800;
 }
 .confirm-head { margin: 0 0 4px; font-size: 1.2rem; font-weight: 800; color: var(--color-ink); }
-.confirm-id { margin: 0 0 4px; color: var(--color-body); font-size: 0.95rem; }
-.confirm-note { margin: 0 0 16px; color: var(--color-muted); font-size: 0.82rem; }
-.confirm-pay { margin-bottom: 10px; padding: 13px 0; }
-.confirm-again { width: 100%; }
+.confirm-id { margin: 0 0 14px; color: var(--color-body); font-size: 0.95rem; }
+.confirm-id strong { color: var(--color-primary); }
+
+.confirm-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 9px 18px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--color-primary-dark);
+  background: var(--color-primary-soft);
+  border-radius: 999px;
+}
+.confirm-spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(37, 99, 235, 0.3);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.confirm-note { margin: 0; color: var(--color-muted); font-size: 0.82rem; line-height: 1.5; }
 
 @media (max-width: 880px) {
   .cart { position: static; }
