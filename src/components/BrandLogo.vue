@@ -1,20 +1,21 @@
 <script setup>
-// Reusable brand logo. Renders /assets/forkly-logo.png and falls back to a
-// "[ FORKLY LOGO ]" text box if the image is missing — so the file is not
-// required to exist yet. Drop the real logo at public/assets/forkly-logo.png.
+// Reusable brand logo. Renders /assets/forkly-transparent-logo.png and falls
+// back to a "[ FORKLY LOGO ]" text box if the image is missing — so the file
+// is not strictly required. The single logo asset for the whole app.
 import { ref } from 'vue'
 
 defineProps({
-  // Show the "Forkly" wordmark + tagline next to the logo box.
+  // Show the "Forkly" wordmark next to the logo box.
   showText: { type: Boolean, default: true },
-  tagline: { type: String, default: 'Order Simple. Live Easy.' },
+  // Optional small tagline under the wordmark (off by default for a clean header).
+  tagline: { type: String, default: '' },
 })
 
 const imageOk = ref(true)
 
 // Bound (not a literal src=) so Vite doesn't try to resolve the file at build
 // time. A missing logo then 404s at runtime and triggers the text fallback.
-const logoSrc = '/assets/forkly-logo.png'
+const logoSrc = '/assets/forkly-transparent-logo.png'
 </script>
 
 <template>
@@ -31,7 +32,7 @@ const logoSrc = '/assets/forkly-logo.png'
     </span>
 
     <span v-if="showText" class="brand-text">
-      <span class="brand-name">🍴 Forkly</span>
+      <span class="brand-name">Forkly</span>
       <span v-if="tagline" class="brand-tagline">{{ tagline }}</span>
     </span>
   </span>

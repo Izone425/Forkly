@@ -33,8 +33,9 @@ when the auth microservice exposes a session-init endpoint.
 
 ## Replacing the logo
 
-Drop `forkly-logo.png` into `public/assets/`. No code change needed — until the
-file exists, a `[ FORKLY LOGO ]` text fallback is shown. See
+The single logo asset is `public/assets/forkly-transparent-logo.png`. Replace
+that file (keep the name) to swap the logo — no code change needed. If it is
+missing, a `[ FORKLY LOGO ]` text fallback is shown. See
 `public/assets/README.md`.
 
 ## Structure

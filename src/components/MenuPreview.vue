@@ -10,8 +10,7 @@ const items = [
 <template>
   <section class="section menu" id="menu">
     <div class="container">
-      <h2 class="section-title">Menu Preview</h2>
-      <p class="section-sub">A taste of what's on the menu.</p>
+      <h2 class="section-title">A glimpse of our menu</h2>
 
       <div class="menu-grid">
         <article v-for="item in items" :key="item.name" class="menu-card">
@@ -21,17 +20,24 @@ const items = [
         </article>
       </div>
 
-      <p class="menu-note">Preview only — full menu available after login.</p>
+      <p class="menu-note">Full menu available after login.</p>
     </div>
   </section>
 </template>
 
 <style scoped>
-.menu { background: var(--color-surface); }
+.menu {
+  /* Faint food-photo texture behind the cards so the section isn't a flat block.
+     Heavy light overlay keeps the white cards crisp and readable. */
+  background:
+    linear-gradient(rgba(248, 250, 252, 0.9), rgba(248, 250, 252, 0.95)),
+    url('/assets/image1.jpg') center / cover no-repeat;
+}
 .menu-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 24px;
+  margin-top: 40px;
 }
 .menu-card {
   background: var(--color-bg);
