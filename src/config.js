@@ -19,6 +19,10 @@ export const config = {
   // the (optional) API-based handoff in services/authGateway.js.
   authApiBase: (import.meta.env.VITE_AUTH_API_BASE || '').trim(),
 
+  // Base URL of the ORDER microservice REST/gRPC-web gateway. When empty, the
+  // order page accepts orders in a local "demo" mode (no network call).
+  orderApiBase: (import.meta.env.VITE_ORDER_API_BASE || '').trim(),
+
   // Where the auth service should send the user back to after login.
   // Defaults to this app's own origin.
   appOrigin:
