@@ -1,19 +1,22 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import BrandLogo from '../components/BrandLogo.vue'
 import MenuItemCard from '../components/MenuItemCard.vue'
 import CartSummary from '../components/CartSummary.vue'
-import { MENU } from '../data/menu.js'
+import { useMenu } from '../stores/menu.js'
 import { useCart } from '../stores/cart.js'
 
 const { count } = useCart()
+const { state: menu, load } = useMenu()
+
+onMounted(load)
 
 // Group menu items by category, preserving first-seen order.
 const grouped = computed(() => {
   const groups = []
   const byKey = {}
-  for (const item of MENU) {
+  for (const item of menu.items) {
     if (!byKey[item.category]) {
       byKey[item.category] = { category: item.category, items: [] }
       groups.push(byKey[item.category])

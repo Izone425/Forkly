@@ -9,6 +9,8 @@ defineProps({
   showText: { type: Boolean, default: true },
   // Optional small tagline under the wordmark (off by default for a clean header).
   tagline: { type: String, default: '' },
+  // 'md' (default) or 'lg' for a larger, more prominent header lockup.
+  size: { type: String, default: 'md' },
 })
 
 const imageOk = ref(true)
@@ -19,7 +21,7 @@ const logoSrc = '/assets/forkly-transparent-logo.png'
 </script>
 
 <template>
-  <span class="brand">
+  <span class="brand" :class="`size-${size}`">
     <span class="logo-box">
       <img
         v-show="imageOk"
@@ -69,7 +71,16 @@ const logoSrc = '/assets/forkly-transparent-logo.png'
 .brand-name { font-size: 1.2rem; font-weight: 800; color: var(--color-ink); letter-spacing: -0.2px; }
 .brand-tagline { font-size: 0.8rem; color: var(--color-muted); font-weight: 500; }
 
+/* Large lockup for the landing header. */
+.size-lg { gap: 18px; }
+.size-lg .logo-box { min-width: 68px; height: 68px; border-radius: 16px; }
+.size-lg .logo-img { max-height: 48px; max-width: 150px; }
+.size-lg .brand-name { font-size: 1.7rem; }
+
 @media (max-width: 720px) {
   .brand-tagline { display: none; }
+  .size-lg .logo-box { min-width: 58px; height: 58px; }
+  .size-lg .logo-img { max-height: 40px; }
+  .size-lg .brand-name { font-size: 1.4rem; }
 }
 </style>

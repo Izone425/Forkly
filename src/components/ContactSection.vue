@@ -8,7 +8,7 @@
       <ul class="contact-list">
         <li>
           <span class="contact-icon" aria-hidden="true">✉️</span>
-          <a href="mailto:support@forkly.com">support@forkly.com</a>
+          <a href="mailto:cs.forkly@yopmail.com">customer.service@forkly.com</a>
         </li>
         <li>
           <span class="contact-icon" aria-hidden="true">📞</span>
