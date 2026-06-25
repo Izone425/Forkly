@@ -4,29 +4,33 @@ import AppHeader from '../components/AppHeader.vue'
 import MenuItemCard from '../components/MenuItemCard.vue'
 import CartSummary from '../components/CartSummary.vue'
 import OrderHistoryList from '../components/OrderHistoryList.vue'
+import ToastHost from '../components/ToastHost.vue'
 import { useMenu } from '../stores/menu.js'
 import { useCart } from '../stores/cart.js'
+import { useToast } from '../stores/toast.js'
 
 const { state: menu, load } = useMenu()
 const cart = useCart()
+const toast = useToast()
 
 onMounted(load)
 
-// Reorder: pre-fill the current cart from a previous order, then scroll up to
-// the Current Order section. The cart behaves normally afterwards (edit/remove/
-// add). We resolve each line against the live menu so prices stay authoritative
-// and the menu cards reflect the quantity; we fall back to the historical line.
+// Reorder: MERGE a previous order into the current cart (never replace), then
+// scroll back to the cart summary and confirm with a toast. The cart stays fully
+// editable afterwards. Each line is resolved against the live menu so prices and
+// the menu steppers stay correct; the historical line is the fallback.
 function reorder(order) {
-  for (const line of order.orderItems) {
-    const menuItem = menu.items.find((m) => m.id === line.menuId)
-    const item = menuItem ?? {
-      id: line.menuId,
-      name: line.menuName,
-      price: line.price,
-    }
-    cart.addQuantity(item, line.quantity)
-  }
+  const reorderItems = order.orderItems.map((i) => ({
+    menuId: i.menuId,
+    name: i.menuName,
+    quantity: i.quantity,
+    price: i.price,
+  }))
+
+  cart.mergeReorder(reorderItems, (id) => menu.items.find((m) => m.id === id))
+
   window.scrollTo({ top: 0, behavior: 'smooth' })
+  toast.show('Previous order added to cart')
 }
 
 // Group menu items by category, preserving first-seen order.
@@ -70,9 +74,11 @@ const grouped = computed(() => {
         <CartSummary class="cart-col" />
       </div>
 
-      <!-- Section 2: Order History. Reorder pre-fills the cart above. -->
+      <!-- Section 2: Order History. Reorder merges into the cart above. -->
       <OrderHistoryList @reorder="reorder" />
     </main>
+
+    <ToastHost />
   </div>
 </template>
 

@@ -33,6 +33,8 @@ function closeDetails() {
   selectedOrder.value = null
 }
 function reorder(order) {
+  // Close the details modal if it was open, then bubble up to the order page.
+  selectedOrder.value = null
   emit('reorder', order)
 }
 </script>
@@ -58,7 +60,7 @@ function reorder(order) {
       />
     </div>
 
-    <OrderDetailsModal :order="selectedOrder" @close="closeDetails" />
+    <OrderDetailsModal :order="selectedOrder" @close="closeDetails" @reorder="reorder" />
   </section>
 </template>
 

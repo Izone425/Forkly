@@ -6,7 +6,7 @@ const props = defineProps({
   order: { type: Object, default: null },
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'reorder'])
 
 const orderNo = computed(() => {
   if (!props.order) return ''
@@ -56,9 +56,10 @@ function money(n) {
           </div>
         </dl>
 
-        <button type="button" class="btn btn-ghost btn-block modal-done" @click="emit('close')">
-          Close
-        </button>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" @click="emit('close')">Close</button>
+          <button type="button" class="btn btn-primary" @click="emit('reorder', order)">Reorder</button>
+        </div>
       </div>
     </div>
   </Teleport>
@@ -124,5 +125,6 @@ function money(n) {
 .modal-fact dd { color: var(--color-ink); font-weight: 600; }
 .modal-fact.grand dt, .modal-fact.grand dd { font-size: 1.2rem; font-weight: 800; color: var(--color-primary); }
 
-.modal-done { padding: 12px 0; }
+.modal-actions { display: flex; gap: 10px; }
+.modal-actions .btn { flex: 1; padding: 12px 0; text-align: center; }
 </style>

@@ -16,10 +16,10 @@ import { MOCK_ORDER_HISTORY } from '../data/orderHistory.js'
  * @returns {Promise<Array>} list of orders (newest first)
  */
 export async function getOrderHistory(userId) {
-  // TODO(API): when the order service exposes history, replace the mock with:
-  //   const res = await fetch(`${config.orderApiBase}/v1/users/${userId}/orders`)
-  //   if (!res.ok) throw new Error(`Order history responded ${res.status}`)
-  //   return await res.json()
+  // TODO: Fetch recent orders list
+  // GET /orders/user/{userId}/recent
+  // (or the order service's history endpoint, e.g.
+  //  GET {orderApiBase}/v1/users/{userId}/orders)
   void config // referenced so the integration point is obvious
 
   const orders = userId
@@ -29,4 +29,17 @@ export async function getOrderHistory(userId) {
   // Newest first.
   const sorted = [...orders].sort((a, b) => (a.orderDate < b.orderDate ? 1 : -1))
   return Promise.resolve(sorted)
+}
+
+/**
+ * Fetch full details for one order (used by reorder / details view).
+ * @param {string} orderId
+ * @returns {Promise<object|null>}
+ */
+export async function getOrderDetails(orderId) {
+  // TODO: Fetch recent order for reorder
+  // GET /orders/{orderId}
+  // OR gRPC: OrderService.GetOrderDetails(orderId)
+  void config
+  return Promise.resolve(MOCK_ORDER_HISTORY.find((o) => o.orderId === orderId) ?? null)
 }
