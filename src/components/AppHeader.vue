@@ -68,8 +68,10 @@ const { count } = useCart()
           </button>
 
           <div v-else class="profile">
-            <span class="profile-avatar" aria-hidden="true">{{ initials }}</span>
-            <span class="profile-name">{{ auth.user.name }}</span>
+            <RouterLink to="/account" class="profile-trigger" title="My account">
+              <span class="profile-avatar" aria-hidden="true">{{ initials }}</span>
+              <span class="profile-name">{{ auth.user.name }}</span>
+            </RouterLink>
             <button type="button" class="profile-logout" @click="logout">Logout</button>
           </div>
         </template>
@@ -194,6 +196,21 @@ const { count } = useCart()
 }
 
 .profile { display: inline-flex; align-items: center; gap: 12px; }
+/* Avatar + name act as one button that opens the "My Account" drawer. */
+.profile-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  font: inherit;
+  text-decoration: none;
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.profile-trigger:hover { background: var(--color-primary-soft); border-color: #cdd9f5; }
 .profile-avatar {
   width: 42px;
   height: 42px;

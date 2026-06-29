@@ -12,10 +12,17 @@ const showModal = ref(false)
 
 onMounted(async () => {
   if (addr.loaded) return
-  // Saved addresses are owned by the User Service (Izzuwan module).
-  // TODO: Fetch user saved addresses from User Service
-  // Future REST: GET /users/{userId}/addresses
-  // Future gRPC: UserService.GetSavedAddresses(userId)
+
+  // Prefer the signed-in user's REAL saved addresses, which the IZZUWAN auth
+  // module already delivered with the login-success profile (stored on auth.user).
+  const fromProfile = auth.user?.addresses
+  if (Array.isArray(fromProfile) && fromProfile.length) {
+    setSaved(fromProfile)
+    return
+  }
+
+  // Fallback (e.g. user has no saved addresses yet): the User Service mock.
+  // TODO: real fetch — REST GET /users/{userId}/addresses
   const list = await getSavedAddresses(auth.user?.id)
   setSaved(list)
 })
