@@ -13,6 +13,11 @@ export const config = {
   // are served IN this app now; they call this API directly via services/authApi.js.
   apiBase: (import.meta.env.VITE_API_BASE || 'http://localhost:5080').trim(),
 
+  // Base URL of the MENU microservice (Amirul). The landing + order pages pull the
+  // live menu (name, price, description, picture) from here. When empty, both pages
+  // show the bundled fallback menu so the UI still renders.
+  menuApiBase: (import.meta.env.VITE_MENU_API_BASE || '').trim(),
+
   // Base URL of the ORDER microservice REST/gRPC-web gateway. When empty, the
   // order page accepts orders in a local "demo" mode (no network call).
   orderApiBase: (import.meta.env.VITE_ORDER_API_BASE || '').trim(),

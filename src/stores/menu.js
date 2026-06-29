@@ -1,14 +1,14 @@
 // =========================================================
 // Forkly — menu store (shared by landing + order pages)
 //
-// Loads the menu from the Order service REST API (which proxies amirul-menu).
-// If no backend is configured, or the request fails, it falls back to the
-// bundled menu so the UI still renders. Loaded once and cached.
+// Loads the menu from Amirul's MENU microservice (via services/menuApi.js).
+// If the Menu API isn't configured yet, or the request fails, it falls back to
+// the bundled sample menu so the UI still renders. Loaded once and cached.
 // =========================================================
 
 import { reactive } from 'vue'
-import { config } from '../config.js'
 import { MENU as FALLBACK } from '../data/menu.js'
+import { fetchMenu, isMenuApiConfigured } from '../services/menuApi.js'
 
 const state = reactive({
   items: [],
@@ -25,8 +25,8 @@ async function load(force = false) {
   state.loading = true
   state.error = ''
 
-  // No backend configured -> use the bundled fallback menu.
-  if (!config.orderApiBase) {
+  // Menu service not wired yet -> use the bundled fallback menu.
+  if (!isMenuApiConfigured()) {
     state.items = FALLBACK
     state.source = 'fallback'
     state.loaded = true
@@ -35,23 +35,11 @@ async function load(force = false) {
   }
 
   try {
-    const res = await fetch(`${config.orderApiBase}/v1/menu`)
-    if (!res.ok) throw new Error(`Menu service responded ${res.status}`)
-    const data = await res.json()
-    state.items = data
-      .filter((i) => i.available !== false)
-      .map((i) => ({
-        id: i.id,
-        name: i.name,
-        description: i.description,
-        price: i.price,
-        emoji: i.emoji,
-        category: i.category,
-      }))
+    state.items = await fetchMenu()
     state.source = 'api'
     state.loaded = true
   } catch (e) {
-    // Graceful fallback so the page still works.
+    // Graceful fallback so the page still works if the Menu service is down.
     state.error = e?.message || 'Could not load the menu.'
     state.items = FALLBACK
     state.source = 'fallback'
