@@ -46,4 +46,11 @@ public class OrderRepository : IOrderRepository
             .Take(count)
             .AsNoTracking()
             .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Order>> GetAllForReportAsync(CancellationToken ct = default) =>
+        await _db.Orders
+            .Include(o => o.Items)
+            .Where(o => o.Status != OrderStatus.Cancelled)
+            .AsNoTracking()
+            .ToListAsync(ct);
 }

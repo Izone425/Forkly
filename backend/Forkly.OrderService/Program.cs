@@ -48,6 +48,7 @@ builder.Services.AddAuthorization();
 // --- Clean architecture wiring: Controller -> Service -> Repository -> DbContext. ---
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IReportService, ReportService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
