@@ -13,6 +13,9 @@ dist-ssr
 .idea
 *.log
 
+# Visual Studio per-user cache
+.vs/
+
 # Claude Code local settings
 .claude/
 
