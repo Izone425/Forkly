@@ -13,6 +13,47 @@ import { config } from '../config.js'
 const isOpen = ref(false)
 const closeBtn = ref(null)
 
+// Load state of the embedded auth app, so a missing/again-not-running Forkly-Auth
+// shows a helpful message instead of a blank white panel.
+//   'loading' → waiting for the iframe to load
+//   'ok'      → the auth app loaded
+//   'error'   → no loginUrl, or the auth app didn't load in time (likely not running)
+const status = ref('loading')
+const frameKey = ref(0) // bump to force the iframe to re-request (Retry)
+let loadTimer = null
+const LOAD_TIMEOUT = 6000 // ms — a refused connection never fires the iframe's load event
+
+function clearTimer() {
+  if (loadTimer) {
+    clearTimeout(loadTimer)
+    loadTimer = null
+  }
+}
+
+// Start (or restart) watching for the auth app to load. If it doesn't load
+// within the timeout, assume Forkly-Auth isn't running on its port.
+function watchLoad() {
+  clearTimer()
+  status.value = 'loading'
+  loadTimer = setTimeout(() => {
+    if (status.value === 'loading') status.value = 'error'
+  }, LOAD_TIMEOUT)
+}
+
+// Fires when the iframe finishes loading the auth app. A connection refused
+// (auth app down) does NOT fire this in Chromium, so the timeout above catches it.
+function onFrameLoad() {
+  if (config.loginUrl) {
+    status.value = 'ok'
+    clearTimer()
+  }
+}
+
+function retry() {
+  frameKey.value++ // remount the iframe so it re-requests the auth app
+  watchLoad()
+}
+
 // Origin of the auth app — used to validate incoming postMessages.
 const authOrigin = computed(() => {
   try {
@@ -34,10 +75,17 @@ const iframeSrc = computed(() => {
 
 function open() {
   isOpen.value = true
+  // No login URL configured at all → tell the user straight away.
+  if (!config.loginUrl) {
+    status.value = 'error'
+  } else {
+    watchLoad()
+  }
   nextTick(() => closeBtn.value?.focus())
 }
 function close() {
   isOpen.value = false
+  clearTimer()
 }
 
 function onKeydown(event) {
@@ -48,6 +96,11 @@ function onMessage(event) {
   // Only trust messages from the auth app's origin.
   if (authOrigin.value && event.origin !== authOrigin.value) return
   const data = event.data || {}
+  // A message from the configured auth origin means it loaded fine.
+  if (config.loginUrl) {
+    status.value = 'ok'
+    clearTimer()
+  }
   if (data.type === 'forkly-auth:success') {
     const user = data.user || {}
     window.dispatchEvent(
@@ -72,6 +125,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('forkly:open-login-drawer', open)
   window.removeEventListener('keydown', onKeydown)
   window.removeEventListener('message', onMessage)
+  clearTimer()
 })
 </script>
 
@@ -99,13 +153,39 @@ onBeforeUnmount(() => {
           </button>
         </header>
 
-        <iframe
-          v-if="isOpen"
-          class="drawer-frame"
-          :src="iframeSrc"
-          title="Forkly sign in"
-          sandbox="allow-scripts allow-forms allow-same-origin"
-        />
+        <div class="drawer-body">
+          <iframe
+            v-if="isOpen"
+            :key="frameKey"
+            class="drawer-frame"
+            :src="iframeSrc"
+            title="Forkly sign in"
+            sandbox="allow-scripts allow-forms allow-same-origin"
+            @load="onFrameLoad"
+          />
+
+          <!-- While the embedded auth app is loading. -->
+          <div v-if="isOpen && status === 'loading'" class="drawer-overlay">
+            <span class="drawer-spinner" aria-hidden="true" />
+            <p class="overlay-text">Connecting to the login service…</p>
+          </div>
+
+          <!-- Auth app not reachable (not running, or no URL configured). -->
+          <div
+            v-if="isOpen && status === 'error'"
+            class="drawer-overlay drawer-overlay--error"
+            role="alert"
+          >
+            <p class="overlay-title">Login service isn't running</p>
+            <p class="overlay-text">
+              Start <strong>Forkly-Auth</strong> on
+              <code>http://localhost:5174</code>.<br />
+              Run <code>./start-all.ps1</code> from the project root, or use the
+              <strong>All Forkly</strong> profile in Visual Studio.
+            </p>
+            <button type="button" class="overlay-retry" @click="retry">Retry</button>
+          </div>
+        </div>
       </aside>
     </div>
   </Teleport>
@@ -165,11 +245,74 @@ onBeforeUnmount(() => {
 }
 .drawer-close:hover { color: var(--color-ink, #0f172a); }
 
-.drawer-frame {
+.drawer-body {
   flex: 1;
+  position: relative;
+}
+.drawer-frame {
+  position: absolute;
+  inset: 0;
   width: 100%;
+  height: 100%;
   border: none;
 }
+
+/* Overlay sits on top of the iframe (covers a blank/refused-connection frame). */
+.drawer-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 28px;
+  background: #fff;
+  text-align: center;
+}
+.overlay-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--color-ink, #0f172a);
+}
+.overlay-text {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--color-body, #475569);
+}
+.drawer-overlay code {
+  font-size: 0.82rem;
+  background: var(--color-surface, #f1f5f9);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+.overlay-retry {
+  margin-top: 4px;
+  border: none;
+  background: var(--color-primary, #2563eb);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+  padding: 9px 22px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.overlay-retry:hover { filter: brightness(1.05); }
+
+.drawer-spinner {
+  width: 26px;
+  height: 26px;
+  border: 3px solid rgba(37, 99, 235, 0.25);
+  border-top-color: var(--color-primary, #2563eb);
+  border-radius: 50%;
+  animation: drawer-spin 0.8s linear infinite;
+}
+@keyframes drawer-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 720px) {
   .drawer-panel { width: 100vw; }
