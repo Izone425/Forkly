@@ -1,35 +1,54 @@
-# Forkly — Frontend (Landing Page)
+# Forkly — Single-Restaurant Food Ordering
 
 A single-restaurant food ordering system built as a microservices training
-project. This repository is the **frontend landing page** only.
+project. This repository is the **integrated app**: the Vue landing page, the
+Vue login/account app (**Forkly-Auth**), and the **.NET API** all live here.
 
-- **Stack:** Vue 3 (SFC) + Vite
+- **Stack:** Vue 3 (SFC) + Vite (frontends), ASP.NET Core (API), PostgreSQL (SIT)
 - **Theme:** Enterprise SaaS (blue / white), Inter typography
-- **Scope:** Landing page (Hero, About, Menu preview, Contact). The login page
-  is built separately by another team member.
 
-## Getting started
+## The three apps (all must run for login to work)
 
-```bash
-npm install
-npm run dev      # http://localhost:5173
-npm run build    # production build into dist/
-npm run preview  # preview the production build
+| App | Folder | URL |
+|-----|--------|-----|
+| **Forkly-Api** — backend API | `Forkly-Api/` | http://localhost:5080 |
+| **Forkly-Landing** — landing page (this folder) | repo root | http://localhost:5173 |
+| **Forkly-Auth** — login / register / account | `Forkly-Auth/` | http://localhost:5174 |
+
+> The landing's **Login** drawer embeds Forkly-Auth in an iframe
+> (`VITE_LOGIN_URL=http://localhost:5174/login`, committed in `.env.development`).
+> **If Forkly-Auth isn't running on 5174, the drawer can't load** — so you must
+> start all three. No per-machine env setup is needed; `.env.development` and the
+> API's `appsettings.Development.json` are committed with the right values.
+
+## Getting started — run all three
+
+### Option A — one command (no Visual Studio needed)
+
+```powershell
+./start-all.ps1
 ```
 
-## The Login button (service handoff)
+This frees stale ports (5080 / 5173 / 5174), runs `npm install` where
+`node_modules` is missing (landing + Forkly-Auth), and launches all three apps,
+each in its own window. Then open **http://localhost:5173** and click **Login**.
 
-The landing page does **not** implement authentication. The "Login" buttons
-hand control off to a separate login service via `src/services/authGateway.js`:
+### Option B — Visual Studio (F5)
 
-- If `VITE_LOGIN_URL` is set, clicking Login redirects there with context:
-  `?from=forkly-landing&return_to=<this app>&role=<client|admin>`.
-- If it is not set yet, the button shows a friendly "service connecting soon"
-  message instead of navigating to a broken page.
+1. Open **`Forkly.sln`**.
+2. Set the startup profile to **All Forkly** (starts API + landing + auth together).
+3. Press **F5**.
 
-To wire it up, copy `.env.example` to `.env.local` and set `VITE_LOGIN_URL`.
-A REST / gRPC-web (via proxy) handoff stub is included in `authGateway.js` for
-when the auth microservice exposes a session-init endpoint.
+Requires the Visual Studio **Node.js development** workload (the two `.esproj`
+projects need it). The JS SDK restores from NuGet on first open (needs internet).
+
+### Run a single app manually
+
+```bash
+npm install && npm run dev          # landing  -> http://localhost:5173
+cd Forkly-Auth && npm install && npm run dev   # auth -> http://localhost:5174
+cd Forkly-Api  && dotnet run        # API      -> http://localhost:5080
+```
 
 ## Replacing the logo
 
