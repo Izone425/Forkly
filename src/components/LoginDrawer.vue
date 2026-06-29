@@ -1,131 +1,39 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { config } from '../config.js'
-
-// IZZUWAN user-management integration seam (login).
-// The landing dispatches `forkly:open-login-drawer` (see services/authBridge.js)
-// when Login is clicked. This drawer answers that: it embeds the Forkly-Auth app
-// (config.loginUrl, e.g. http://localhost:5174/login) in an iframe with ?embed=1,
-// and relays the auth app's postMessage success back as `forkly:login-success`
-// (which authBridge.initAuthBridge() listens for to set the signed-in profile).
-// The signed-in "My Account" view is a full page (/account), not this drawer.
+// Slide-in sign-in drawer. The landing dispatches `forkly:open-login-drawer`
+// (see services/authBridge.js) when Login is clicked; this drawer answers it by
+// rendering the in-app LoginForm. On success the auth store is already updated,
+// so CartSummary's watch(isLoggedIn) resumes a pending checkout — we just close.
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { RouterLink } from 'vue-router'
+import LoginForm from './LoginForm.vue'
 
 const isOpen = ref(false)
 const closeBtn = ref(null)
 
-// Load state of the embedded auth app, so a missing/again-not-running Forkly-Auth
-// shows a helpful message instead of a blank white panel.
-//   'loading' → waiting for the iframe to load
-//   'ok'      → the auth app loaded
-//   'error'   → no loginUrl, or the auth app didn't load in time (likely not running)
-const status = ref('loading')
-const frameKey = ref(0) // bump to force the iframe to re-request (Retry)
-let loadTimer = null
-const LOAD_TIMEOUT = 6000 // ms — a refused connection never fires the iframe's load event
-
-function clearTimer() {
-  if (loadTimer) {
-    clearTimeout(loadTimer)
-    loadTimer = null
-  }
-}
-
-// Start (or restart) watching for the auth app to load. If it doesn't load
-// within the timeout, assume Forkly-Auth isn't running on its port.
-function watchLoad() {
-  clearTimer()
-  status.value = 'loading'
-  loadTimer = setTimeout(() => {
-    if (status.value === 'loading') status.value = 'error'
-  }, LOAD_TIMEOUT)
-}
-
-// Fires when the iframe finishes loading the auth app. A connection refused
-// (auth app down) does NOT fire this in Chromium, so the timeout above catches it.
-function onFrameLoad() {
-  if (config.loginUrl) {
-    status.value = 'ok'
-    clearTimer()
-  }
-}
-
-function retry() {
-  frameKey.value++ // remount the iframe so it re-requests the auth app
-  watchLoad()
-}
-
-// Origin of the auth app — used to validate incoming postMessages.
-const authOrigin = computed(() => {
-  try {
-    return new URL(config.loginUrl).origin
-  } catch {
-    return ''
-  }
-})
-
-// iframe URL, rebuilt each open. embed=1 puts Forkly-Auth into postMessage mode.
-const iframeSrc = computed(() => {
-  if (!isOpen.value || !config.loginUrl) return 'about:blank'
-  const url = new URL(config.loginUrl)
-  url.searchParams.set('from', 'forkly-landing')
-  url.searchParams.set('return_to', window.location.origin)
-  url.searchParams.set('embed', '1')
-  return url.toString()
-})
-
 function open() {
   isOpen.value = true
-  // No login URL configured at all → tell the user straight away.
-  if (!config.loginUrl) {
-    status.value = 'error'
-  } else {
-    watchLoad()
-  }
   nextTick(() => closeBtn.value?.focus())
 }
 function close() {
   isOpen.value = false
-  clearTimer()
+}
+
+function onSuccess() {
+  // Profile is set by the form via the auth store; just close the drawer.
+  close()
 }
 
 function onKeydown(event) {
   if (event.key === 'Escape' && isOpen.value) close()
 }
 
-function onMessage(event) {
-  // Only trust messages from the auth app's origin.
-  if (authOrigin.value && event.origin !== authOrigin.value) return
-  const data = event.data || {}
-  // A message from the configured auth origin means it loaded fine.
-  if (config.loginUrl) {
-    status.value = 'ok'
-    clearTimer()
-  }
-  if (data.type === 'forkly-auth:success') {
-    const user = data.user || {}
-    window.dispatchEvent(
-      new CustomEvent('forkly:login-success', {
-        detail: {
-          // Map the auth UserDto onto the shape the landing store expects (name).
-          user: { ...user, name: user.fullName || user.name || user.email },
-          token: data.token,
-        },
-      }),
-    )
-    close()
-  }
-}
-
 onMounted(() => {
   window.addEventListener('forkly:open-login-drawer', open)
   window.addEventListener('keydown', onKeydown)
-  window.addEventListener('message', onMessage)
 })
 onBeforeUnmount(() => {
   window.removeEventListener('forkly:open-login-drawer', open)
   window.removeEventListener('keydown', onKeydown)
-  window.removeEventListener('message', onMessage)
-  clearTimer()
 })
 </script>
 
@@ -154,37 +62,14 @@ onBeforeUnmount(() => {
         </header>
 
         <div class="drawer-body">
-          <iframe
-            v-if="isOpen"
-            :key="frameKey"
-            class="drawer-frame"
-            :src="iframeSrc"
-            title="Forkly sign in"
-            sandbox="allow-scripts allow-forms allow-same-origin"
-            @load="onFrameLoad"
-          />
-
-          <!-- While the embedded auth app is loading. -->
-          <div v-if="isOpen && status === 'loading'" class="drawer-overlay">
-            <span class="drawer-spinner" aria-hidden="true" />
-            <p class="overlay-text">Connecting to the login service…</p>
-          </div>
-
-          <!-- Auth app not reachable (not running, or no URL configured). -->
-          <div
-            v-if="isOpen && status === 'error'"
-            class="drawer-overlay drawer-overlay--error"
-            role="alert"
-          >
-            <p class="overlay-title">Login service isn't running</p>
-            <p class="overlay-text">
-              Start <strong>Forkly-Auth</strong> on
-              <code>http://localhost:5174</code>.<br />
-              Run <code>./start-all.ps1</code> from the project root, or use the
-              <strong>All Forkly</strong> profile in Visual Studio.
-            </p>
-            <button type="button" class="overlay-retry" @click="retry">Retry</button>
-          </div>
+          <p class="drawer-intro">Sign in to your Forkly account to continue.</p>
+          <!-- Hide the register switch here: navigating to /register would drop a
+               pending checkout. The full /login page shows it. -->
+          <LoginForm v-if="isOpen" :show-switch="false" @success="onSuccess" />
+          <p class="drawer-foot">
+            New to Forkly?
+            <RouterLink to="/register" @click="close">Create an account</RouterLink>
+          </p>
         </div>
       </aside>
     </div>
@@ -247,72 +132,20 @@ onBeforeUnmount(() => {
 
 .drawer-body {
   flex: 1;
-  position: relative;
+  overflow-y: auto;
+  padding: 24px 22px;
 }
-.drawer-frame {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: none;
+.drawer-intro {
+  margin: 0 0 20px;
+  color: var(--color-muted, #64748b);
+  font-size: 0.95rem;
 }
-
-/* Overlay sits on top of the iframe (covers a blank/refused-connection frame). */
-.drawer-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  padding: 28px;
-  background: #fff;
+.drawer-foot {
+  margin: 20px 0 0;
   text-align: center;
-}
-.overlay-title {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 800;
-  color: var(--color-ink, #0f172a);
-}
-.overlay-text {
-  margin: 0;
   font-size: 0.9rem;
-  line-height: 1.6;
   color: var(--color-body, #475569);
 }
-.drawer-overlay code {
-  font-size: 0.82rem;
-  background: var(--color-surface, #f1f5f9);
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 6px;
-  padding: 1px 6px;
-}
-.overlay-retry {
-  margin-top: 4px;
-  border: none;
-  background: var(--color-primary, #2563eb);
-  color: #fff;
-  font-family: inherit;
-  font-size: 0.92rem;
-  font-weight: 700;
-  padding: 9px 22px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-.overlay-retry:hover { filter: brightness(1.05); }
-
-.drawer-spinner {
-  width: 26px;
-  height: 26px;
-  border: 3px solid rgba(37, 99, 235, 0.25);
-  border-top-color: var(--color-primary, #2563eb);
-  border-radius: 50%;
-  animation: drawer-spin 0.8s linear infinite;
-}
-@keyframes drawer-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 720px) {
   .drawer-panel { width: 100vw; }

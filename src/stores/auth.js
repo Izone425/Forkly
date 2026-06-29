@@ -1,20 +1,25 @@
 // =========================================================
-// Forkly — auth store (minimal)
+// Forkly — auth store
 //
-// Authentication itself is handled by the user-management frontend
-// (izone-user-management-FE). After a successful login it should return to the
-// landing page and call setUser() with the signed-in profile; the header then
-// shows the profile instead of the Login button.
+// Login/register/profile now live IN this app (src/views/{Login,Register,Profile}View,
+// src/services/authApi.js). This store holds the signed-in display profile; the JWT
+// itself is persisted by authApi (localStorage) and attached to API requests there.
 //
-// Default state is logged-out. This store holds no credentials — only the
-// display profile.
+// Default state is logged-out. hydrate() restores the session from a stored token on
+// app start, so a page refresh stays signed in.
 // =========================================================
 
 import { reactive, computed } from 'vue'
+import { me, getToken, clearToken } from '../services/authApi.js'
 
 const state = reactive({
-  user: null, // { name: string, email?: string } | null
+  user: null, // { name, email?, fullName?, avatarUrl?, addresses? } | null
 })
+
+// Map an API UserDto onto the shape the landing header/store expect (needs `name`).
+function mapUser(u) {
+  return { ...u, name: u.fullName || u.name || u.email }
+}
 
 export function useAuth() {
   const isLoggedIn = computed(() => state.user !== null)
@@ -34,9 +39,27 @@ export function useAuth() {
     state.user = user
   }
 
-  function logout() {
-    state.user = null
+  // Called by the login/register forms after authApi has stored the token.
+  function signIn(user) {
+    state.user = mapUser(user)
   }
 
-  return { state, isLoggedIn, initials, setUser, logout }
+  function logout() {
+    state.user = null
+    clearToken()
+  }
+
+  // Restore the session from a stored token on app start (App.vue onMounted).
+  async function hydrate() {
+    if (!getToken()) return
+    try {
+      state.user = mapUser(await me())
+    } catch {
+      // Token missing/expired/invalid — drop it and stay logged out.
+      clearToken()
+      state.user = null
+    }
+  }
+
+  return { state, isLoggedIn, initials, setUser, signIn, logout, hydrate }
 }

@@ -1,15 +1,16 @@
 <script setup>
 import { onMounted } from 'vue'
 import { RouterView } from 'vue-router'
-import { initAuthBridge } from './services/authBridge.js'
 import LoginDrawer from './components/LoginDrawer.vue'
+import { useAuth } from './stores/auth.js'
 
-// Subscribe to the IZZUWAN auth module's login-success signal.
-onMounted(initAuthBridge)
+// Restore the session from a stored token on load, so a refresh stays signed in.
+const { hydrate } = useAuth()
+onMounted(hydrate)
 </script>
 
 <template>
   <RouterView />
-  <!-- IZZUWAN login drawer: answers `forkly:open-login-drawer`, embeds Forkly-Auth. -->
+  <!-- Slide-in login drawer: answers `forkly:open-login-drawer`, renders the in-app form. -->
   <LoginDrawer />
 </template>

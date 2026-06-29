@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import FormField from '../components/FormField.vue'
+import { useRouter } from 'vue-router'
 import {
   me,
   updateProfile,
@@ -13,11 +14,11 @@ import {
   listOrders,
   absoluteUrl,
   getToken,
-  clearToken,
-} from '../services/api.js'
-import { useHandoff } from '../composables/useHandoff.js'
+} from '../services/authApi.js'
+import { useAuth } from '../stores/auth.js'
 
-const { postToParent } = useHandoff()
+const router = useRouter()
+const { setUser, logout } = useAuth()
 
 const loading = ref(true)
 const loadError = ref('')
@@ -93,23 +94,24 @@ function applyUser(u) {
 
 // Notify the landing so the header (name + avatar) updates live.
 function emitUpdated(u) {
-  postToParent('forkly-auth:profile-updated', {
-    user: { ...u, avatarUrl: absoluteUrl(u.avatarUrl) },
-  })
+  // Refresh the landing header (name + avatar) live.
+  setUser({ ...u, name: u.fullName || u.email, avatarUrl: absoluteUrl(u.avatarUrl) })
 }
 
 onMounted(async () => {
   if (!getToken()) {
     loadError.value = 'Your session has expired. Please sign in again.'
     loading.value = false
-    postToParent('forkly-auth:logout')
+    logout()
+    router.push('/')
     return
   }
   try {
     applyUser(await me())
   } catch {
     loadError.value = 'Your session has expired. Please sign in again.'
-    postToParent('forkly-auth:logout')
+    logout()
+    router.push('/')
     loading.value = false
     return
   }
@@ -251,8 +253,8 @@ async function onChangePassword() {
 }
 
 function onLogout() {
-  clearToken()
-  postToParent('forkly-auth:logout')
+  logout()
+  router.push('/')
 }
 </script>
 

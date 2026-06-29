@@ -1,12 +1,16 @@
 <script setup>
+// Full-page account creation route (/register). Registers via the API, signs the
+// user in (token stored by authApi), then returns to the app.
 import { ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter, useRoute } from 'vue-router'
 import AuthCard from '../components/AuthCard.vue'
 import FormField from '../components/FormField.vue'
-import { register } from '../services/api.js'
-import { useHandoff } from '../composables/useHandoff.js'
+import { register } from '../services/authApi.js'
+import { useAuth } from '../stores/auth.js'
 
-const { role, embedded, completeHandoff } = useHandoff()
+const router = useRouter()
+const route = useRoute()
+const { signIn } = useAuth()
 
 const fullName = ref('')
 const email = ref('')
@@ -16,8 +20,6 @@ const confirm = ref('')
 const errors = ref({})
 const submitting = ref(false)
 const formError = ref('')
-const done = ref(false)
-const signingIn = ref(false)
 
 function validate() {
   const e = {}
@@ -39,12 +41,9 @@ async function onSubmit() {
       email: email.value,
       password: password.value,
     })
-    const handed = completeHandoff(auth.token, auth.user)
-    if (handed && embedded) {
-      signingIn.value = true
-    } else if (!handed) {
-      done.value = true
-    }
+    signIn(auth.user)
+    const dest = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
+    router.push(dest)
   } catch (err) {
     formError.value = err.message
   } finally {
@@ -54,17 +53,8 @@ async function onSubmit() {
 </script>
 
 <template>
-  <AuthCard
-    title="Create your account"
-    subtitle="Join Forkly to start ordering."
-    :role="role"
-  >
-    <p v-if="signingIn" class="notice notice-success">Creating your account…</p>
-    <p v-else-if="done" class="notice notice-success">
-      Account created — you're signed in. (No return destination was provided.)
-    </p>
-
-    <form v-else @submit.prevent="onSubmit">
+  <AuthCard title="Create your account" subtitle="Join Forkly to start ordering.">
+    <form @submit.prevent="onSubmit">
       <p v-if="formError" class="notice notice-error">{{ formError }}</p>
 
       <div class="fields">

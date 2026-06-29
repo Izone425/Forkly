@@ -2,8 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import LandingView from '../views/LandingView.vue'
 
 // Page-level routing for the Forkly frontend.
-// `/order` is the post-login ordering experience (login itself is handled by a
-// separate service — see services/authGateway.js). No auth guards here yet.
+// Login/register/account are served in-app (no separate auth service). The Login
+// button also opens a slide-in drawer; these routes are for direct navigation.
 const routes = [
   { path: '/', name: 'landing', component: LandingView },
   {
@@ -13,9 +13,19 @@ const routes = [
     component: () => import('../views/OrderView.vue'),
   },
   {
+    path: '/login',
+    name: 'login',
+    component: () => import('../views/LoginView.vue'),
+  },
+  {
+    path: '/register',
+    name: 'register',
+    component: () => import('../views/RegisterView.vue'),
+  },
+  {
     path: '/account',
     name: 'account',
-    // Full-page "My Account" (embeds the user-management profile page).
+    // Full-page "My Account" (in-app profile UI).
     component: () => import('../views/AccountView.vue'),
   },
 ]
