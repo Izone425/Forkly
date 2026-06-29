@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forkly — System Architecture &amp; Data Flow</title>
+<style>
+  :root{
+    --ink:#1b1f2a; --muted:#5b6472; --line:#e4e7ec; --bg:#ffffff; --soft:#f7f8fa;
+    --user:#4f46e5; --menu:#d97706; --order:#059669; --pay:#e11d48; --kitchen:#ea580c; --notif:#7c3aed;
+    --userbg:#eef0fe; --menubg:#fdf3e3; --orderbg:#e7f6f0; --paybg:#fdeef2; --kitchenbg:#fdeee3; --notifbg:#f1ecfd;
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+  body{
+    margin:0; color:var(--ink); background:var(--soft);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.55; font-size:15px;
+  }
+  .page{max-width:980px; margin:0 auto; padding:0 28px 80px}
+  code,pre{font-family:"SF Mono",ui-monospace,"Cascadia Code",Consolas,monospace}
+
+  /* Hero */
+  .hero{
+    background:linear-gradient(135deg,#0f172a 0%,#1e293b 55%,#334155 100%);
+    color:#fff; border-radius:0 0 24px 24px; padding:46px 40px 38px; margin-bottom:34px;
+    box-shadow:0 18px 40px -22px rgba(15,23,42,.55);
+  }
+  .hero .eyebrow{letter-spacing:.18em; text-transform:uppercase; font-size:11.5px; color:#94a3b8; font-weight:700}
+  .hero h1{margin:.3em 0 .25em; font-size:34px; line-height:1.12; letter-spacing:-.02em}
+  .hero p{margin:0; color:#cbd5e1; max-width:60ch}
+  .hero .meta{margin-top:18px; display:flex; gap:10px; flex-wrap:wrap}
+  .chip{background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18); color:#e2e8f0;
+    padding:5px 11px; border-radius:999px; font-size:12px; font-weight:600}
+
+  h2{font-size:22px; letter-spacing:-.01em; margin:38px 0 6px; padding-top:10px}
+  h2 .num{color:var(--muted); font-weight:600; margin-right:10px}
+  h3{font-size:15.5px; margin:22px 0 8px}
+  .lead{color:var(--muted); margin:0 0 14px; max-width:72ch}
+  section{background:var(--bg); border:1px solid var(--line); border-radius:var(--radius);
+    padding:22px 26px 26px; margin-bottom:18px; box-shadow:0 1px 2px rgba(16,24,40,.04)}
+
+  /* Legend */
+  .legend{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:6px 0 2px}
+  .svc{border:1px solid var(--line); border-left-width:5px; border-radius:10px; padding:10px 13px; background:var(--soft)}
+  .svc b{display:block; font-size:14px}
+  .svc span{font-size:12.5px; color:var(--muted)}
+  .s-user{border-left-color:var(--user)} .s-menu{border-left-color:var(--menu)}
+  .s-order{border-left-color:var(--order)} .s-pay{border-left-color:var(--pay)}
+  .s-kitchen{border-left-color:var(--kitchen)} .s-notif{border-left-color:var(--notif)}
+
+  /* Callout */
+  .callout{border-radius:12px; padding:14px 16px; margin:14px 0; font-size:14px; border:1px solid}
+  .tip{background:#e7f6f0; border-color:#abebd3; color:#065f46}
+  .warn{background:#fff7ed; border-color:#fed7aa; color:#9a3412}
+  .callout b{font-weight:700}
+
+  /* API vs gRPC cards */
+  .twocol{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:6px}
+  .card{border:1px solid var(--line); border-radius:12px; padding:16px 18px; background:var(--soft)}
+  .card h4{margin:0 0 4px; font-size:15px}
+  .card .tag{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em}
+  .rest .tag{color:var(--order)} .grpc .tag{color:var(--user)}
+  .card ul{margin:8px 0 0; padding-left:18px; font-size:13.5px; color:#374151}
+
+  table{width:100%; border-collapse:collapse; margin:10px 0; font-size:13.5px}
+  th,td{text-align:left; padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top}
+  th{background:var(--soft); font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  .pill{display:inline-block; padding:2px 9px; border-radius:999px; font-size:11.5px; font-weight:700}
+  .p-rest{background:var(--orderbg); color:var(--order)} .p-opt{background:#eef1f5; color:#475569}
+
+  /* System map */
+  .map{display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin-top:8px}
+  .col{border-radius:11px; padding:11px 10px; font-size:12px; border:1px solid}
+  .col h5{margin:0 0 2px; font-size:13px}
+  .col .who{font-size:11px; font-weight:700; opacity:.8}
+  .col ul{margin:7px 0 0; padding-left:15px; line-height:1.4}
+  .c-user{background:var(--userbg); border-color:#c7cbfb; color:#312e81}
+  .c-menu{background:var(--menubg); border-color:#f0d39b; color:#7c2d12}
+  .c-order{background:var(--orderbg); border-color:#a7e3cd; color:#064e3b}
+  .c-pay{background:var(--paybg); border-color:#f6c2d1; color:#881337}
+  .c-kitchen{background:var(--kitchenbg); border-color:#f5cba6; color:#7c2d12}
+  .c-notif{background:var(--notifbg); border-color:#d6c8f7; color:#4c1d95}
+  .browserbar{background:#0f172a; color:#fff; border-radius:11px; padding:12px 16px; text-align:center; margin-bottom:8px}
+  .browserbar b{font-size:14px} .browserbar span{display:block; color:#94a3b8; font-size:12px; margin-top:2px}
+  .downarrow{text-align:center; color:var(--muted); font-size:13px; margin:6px 0; font-weight:600}
+  .hops{margin-top:14px; border-top:1px dashed var(--line); padding-top:12px}
+  .hop{display:flex; align-items:center; gap:8px; font-size:13px; padding:5px 0; flex-wrap:wrap}
+  .hop .a{font-weight:700} .hop .arrow{color:var(--muted)}
+
+  /* Flow timeline */
+  .phase{margin:16px 0 6px; font-weight:700; font-size:13px; letter-spacing:.04em; text-transform:uppercase; color:var(--muted)}
+  .steps{list-style:none; margin:0; padding:0; counter-reset:s}
+  .steps li{position:relative; padding:8px 0 8px 40px; border-bottom:1px solid var(--line); font-size:13.8px}
+  .steps li:last-child{border-bottom:none}
+  .steps li::before{counter-increment:s; content:counter(s); position:absolute; left:0; top:7px;
+    width:26px; height:26px; border-radius:50%; background:#0f172a; color:#fff; font-size:12px; font-weight:700;
+    display:flex; align-items:center; justify-content:center}
+  .steps b{color:var(--order)}
+
+  /* Status pipeline */
+  .pipe{display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:12px 0}
+  .stat{padding:7px 14px; border-radius:999px; font-weight:700; font-size:13px; border:1.5px solid}
+  .st1{background:#eef1f5; color:#475569; border-color:#cbd5e1}
+  .st2{background:var(--paybg); color:var(--pay); border-color:#f6c2d1}
+  .st3{background:var(--kitchenbg); color:var(--kitchen); border-color:#f5cba6}
+  .st4{background:var(--menubg); color:var(--menu); border-color:#f0d39b}
+  .st5{background:var(--notifbg); color:var(--notif); border-color:#d6c8f7}
+  .st6{background:var(--orderbg); color:var(--order); border-color:#a7e3cd}
+  .stx{background:#fbeaea; color:#b91c1c; border-color:#f3c4c4}
+  .pipe .sep{color:var(--muted); font-weight:700}
+  .owner{font-size:11px; color:var(--muted); text-align:center; margin-top:-6px}
+
+  pre{background:#0f172a; color:#e2e8f0; padding:14px 16px; border-radius:10px; overflow-x:auto;
+    font-size:12.5px; line-height:1.5; margin:8px 0}
+  pre .k{color:#7dd3fc} pre .s{color:#86efac} pre .c{color:#64748b}
+  .contract{margin:12px 0}
+  .contract .h{font-size:13px; font-weight:700; margin-bottom:2px}
+  .contract .h .from{color:var(--order)} .contract .h .to{color:var(--muted)}
+
+  .foot{color:var(--muted); font-size:12px; text-align:center; margin-top:26px}
+  @media print{
+    body{background:#fff; font-size:12px}
+    .page{padding:0 10px}
+    .hero{border-radius:0; box-shadow:none; margin-bottom:20px}
+    section{break-inside:avoid; box-shadow:none}
+    .map{break-inside:avoid}
+    h2{break-after:avoid}
+  }
+  @media(max-width:760px){
+    .legend,.twocol{grid-template-columns:1fr}
+    .map{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="eyebrow">Forkly · Mini Project</div>
+  <h1>System Architecture &amp; Data Flow</h1>
+  <p>How the seven Forkly services talk to each other — from customer login, through menu, cart, order, payment and kitchen, to live delivery tracking.</p>
+  <div class="meta">
+    <span class="chip">Microservices</span>
+    <span class="chip">REST + JWT</span>
+    <span class="chip">.NET 8 · Vue 3 · PostgreSQL</span>
+    <span class="chip">Team reference v1</span>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- Legend -->
+  <section>
+    <h3 style="margin-top:0">The team &amp; their services</h3>
+    <div class="legend">
+      <div class="svc s-user"><b>User Management</b><span>Izzuwan — login, JWT, roles, profile, addresses</span></div>
+      <div class="svc s-menu"><b>Menu Management</b><span>Amirul — menu items: name, description, price, picture</span></div>
+      <div class="svc s-order"><b>Order Service</b><span>Hanif — create order, SST + total, history, reorder</span></div>
+      <div class="svc s-pay"><b>Payment</b><span>Aiman — charge reference + total, confirm payment</span></div>
+      <div class="svc s-kitchen"><b>Kitchen</b><span>Zul — crew queue, mark preparing / done / shipped</span></div>
+      <div class="svc s-notif"><b>Notification &amp; Tracker</b><span>Alia — status feed + mock delivery timer</span></div>
+    </div>
+    <div class="callout tip" style="margin-bottom:0">
+      <b>Golden rule:</b> every service owns its <b>own database</b>. Nobody reads another team's tables directly — they call its API. That isolation is why each part can be built and deployed independently.
+    </div>
+  </section>
+
+  <!-- 1. API vs gRPC -->
+  <h2><span class="num">01</span>API (REST) vs gRPC</h2>
+  <section>
+    <p class="lead">The single question that decides which one to use: <b>who is calling whom?</b></p>
+    <div class="twocol">
+      <div class="card rest">
+        <span class="tag">Use for: Browser → Backend</span>
+        <h4>REST (HTTP + JSON)</h4>
+        <ul>
+          <li>Human-readable JSON</li>
+          <li>Browsers call it directly (<code>fetch</code>/<code>axios</code>)</li>
+          <li>Test in Swagger / Postman</li>
+          <li>Everyone already knows it</li>
+        </ul>
+      </div>
+      <div class="card grpc">
+        <span class="tag">Use for: Backend → Backend</span>
+        <h4>gRPC (HTTP/2 + protobuf)</h4>
+        <ul>
+          <li>Compact binary, very fast</li>
+          <li>Browsers <b>cannot</b> call it directly (needs a proxy)</li>
+          <li>Strict shared <code>.proto</code> contract</li>
+          <li>Great for high-volume service-to-service calls</li>
+        </ul>
+      </div>
+    </div>
+    <div class="callout tip">
+      <b>Recommendation for our team — start 100% REST.</b> It unblocks everyone, is browser-friendly, and is trivial to test. The repo already has <code>.proto</code> files scaffolded, so gRPC stays available as a Phase-2 optimisation — but it should never block you from shipping.
+    </div>
+    <p class="lead" style="margin-bottom:0"><b>Hard rule:</b> any call coming <b>from the Vue frontend must be REST</b> — a browser can't speak raw gRPC.</p>
+  </section>
+
+  <!-- 2. System map -->
+  <h2><span class="num">02</span>System map — who owns what</h2>
+  <section>
+    <div class="browserbar">
+      <b>VUE FRONTEND (browser)</b>
+      <span>login · landing · order · profile · admin · kitchen-crew · payment · tracker</span>
+    </div>
+    <div class="downarrow">▼ &nbsp; all browser → backend calls = REST + JWT &nbsp; ▼</div>
+    <div class="map">
+      <div class="col c-user"><h5>User</h5><div class="who">Izzuwan</div>
+        <ul><li>login / JWT</li><li>roles</li><li>profile</li><li>addresses</li></ul></div>
+      <div class="col c-menu"><h5>Menu</h5><div class="who">Amirul</div>
+        <ul><li>menu items</li><li>name / desc</li><li>price / picture</li><li>admin CRUD</li></ul></div>
+      <div class="col c-order"><h5>Order</h5><div class="who">Hanif</div>
+        <ul><li>create order</li><li>SST + total</li><li>order history</li><li>reorder</li></ul></div>
+      <div class="col c-pay"><h5>Payment</h5><div class="who">Aiman</div>
+        <ul><li>take payment</li><li>ref + amount</li><li>confirm</li></ul></div>
+      <div class="col c-kitchen"><h5>Kitchen</h5><div class="who">Zul</div>
+        <ul><li>crew queue</li><li>mark prep</li><li>done / ship</li></ul></div>
+      <div class="col c-notif"><h5>Tracker</h5><div class="who">Alia</div>
+        <ul><li>status feed</li><li>mock timer</li><li>Preparing → Delivered</li></ul></div>
+    </div>
+    <div class="hops">
+      <div class="hop"><span class="a" style="color:var(--order)">Order</span><span class="arrow">── menu lookup ──►</span><span class="a" style="color:var(--menu)">Menu</span><span class="pill p-opt">REST or gRPC</span></div>
+      <div class="hop"><span class="a" style="color:var(--order)">Order</span><span class="arrow">── charge: reference + total ──►</span><span class="a" style="color:var(--pay)">Payment</span><span class="pill p-opt">REST or gRPC</span></div>
+      <div class="hop"><span class="a" style="color:var(--order)">Order</span><span class="arrow">── new kitchen ticket ──►</span><span class="a" style="color:var(--kitchen)">Kitchen</span><span class="pill p-opt">REST or gRPC</span></div>
+      <div class="hop"><span class="a" style="color:var(--pay)">Payment</span><span class="arrow">── paid! start cooking ──►</span><span class="a" style="color:var(--kitchen)">Kitchen</span><span class="pill p-opt">REST or gRPC</span></div>
+      <div class="hop"><span class="a" style="color:var(--kitchen)">Kitchen / Payment</span><span class="arrow">── status update ──►</span><span class="a" style="color:var(--order)">Order (source of truth)</span><span class="pill p-opt">REST or gRPC</span></div>
+      <div class="hop"><span class="a" style="color:var(--order)">Order / Kitchen</span><span class="arrow">── status events ──►</span><span class="a" style="color:var(--notif)">Tracker</span><span class="pill p-opt">REST or gRPC</span></div>
+    </div>
+  </section>
+
+  <!-- 3. End to end flow -->
+  <h2><span class="num">03</span>End-to-end data flow (happy path)</h2>
+  <section>
+    <div class="phase">Login</div>
+    <ol class="steps">
+      <li>Customer opens the <b>login page</b> (Izzuwan).</li>
+      <li><code>POST /api/auth/login {email, password}</code> &nbsp;→ REST.</li>
+      <li>User service returns a <b>JWT</b> (contains userId + <b>role</b>) and the user profile JSON.</li>
+      <li>Frontend routes by role → Customer: landing · Admin: dashboard · Crew: kitchen screen.</li>
+    </ol>
+    <div class="phase">Browse &amp; cart</div>
+    <ol class="steps">
+      <li>Landing + order page load the menu: <code>GET /api/menu</code> → name, description, unitPrice, imageUrl (Amirul).</li>
+      <li>Customer adds items to the cart (cart lives in the browser / Pinia store).</li>
+    </ol>
+    <div class="phase">Place order</div>
+    <ol class="steps">
+      <li>Order page → <code>POST /api/orders {items:[…]}</code> → <b>your Order Service</b>.</li>
+      <li>Order Service computes <b>Subtotal, SST (6%), Total</b>, generates a <b>Reference</b> (FRK-1001), saves order + items (status = Pending).</li>
+      <li>Order Service hands off → <b>Payment</b> (reference + total) and → <b>Kitchen</b> (ticket: items + user).</li>
+    </ol>
+    <div class="phase">Pay</div>
+    <ol class="steps">
+      <li>Frontend opens the <b>Payment page</b> (Aiman) showing reference + total.</li>
+      <li>Customer pays → Payment confirms.</li>
+      <li>Payment notifies → <b>Order</b> (status = Paid), → <b>Kitchen</b> (start cooking), → <b>Tracker</b> (order is live).</li>
+    </ol>
+    <div class="phase">Kitchen</div>
+    <ol class="steps">
+      <li>Crew logs in → sees the ticket on Zul's screen.</li>
+      <li>Taps <b>Start</b> → status = Preparing → notifies Order + Tracker.</li>
+      <li>Taps <b>Completed</b> → status = Completed → notifies Order + Tracker.</li>
+      <li>Taps <b>Out for delivery</b> (rider picked up) → status = OutForDelivery → notifies Tracker.</li>
+    </ol>
+    <div class="phase">Track &amp; history</div>
+    <ol class="steps">
+      <li>Tracker (Alia) shows live status; on OutForDelivery it starts a <b>mock timer</b> (random 15–30 min or preset), counts down, then shows <b>Delivered</b>.</li>
+      <li>Customer profile (Izzuwan) shows history via <code>GET /api/orders/user/{userId}</code> → your Order Service.</li>
+    </ol>
+  </section>
+
+  <!-- 4. Status lifecycle -->
+  <h2><span class="num">04</span>Order status lifecycle</h2>
+  <section>
+    <p class="lead">Five services read/write this one field, so the words must match exactly. The <b>Order Service is the single source of truth</b>; everyone else updates status through its API.</p>
+    <div class="pipe">
+      <span class="stat st1">Pending</span><span class="sep">→</span>
+      <span class="stat st2">Paid</span><span class="sep">→</span>
+      <span class="stat st3">Preparing</span><span class="sep">→</span>
+      <span class="stat st4">Completed</span><span class="sep">→</span>
+      <span class="stat st5">OutForDelivery</span><span class="sep">→</span>
+      <span class="stat st6">Delivered</span>
+      <span class="sep" style="margin:0 8px">|</span>
+      <span class="stat stx">Cancelled</span>
+    </div>
+    <table>
+      <tr><th>Status</th><th>Set by</th><th>Means</th></tr>
+      <tr><td><b>Pending</b></td><td>Order (Hanif)</td><td>Order created, awaiting payment</td></tr>
+      <tr><td><b>Paid</b></td><td>Payment (Aiman)</td><td>Payment confirmed</td></tr>
+      <tr><td><b>Preparing</b></td><td>Kitchen (Zul)</td><td>Crew started cooking</td></tr>
+      <tr><td><b>Completed</b></td><td>Kitchen (Zul)</td><td>Food ready</td></tr>
+      <tr><td><b>OutForDelivery</b></td><td>Kitchen (Zul)</td><td>Rider picked up → tracker timer starts</td></tr>
+      <tr><td><b>Delivered</b></td><td>Tracker (Alia)</td><td>Mock timer elapsed</td></tr>
+      <tr><td><b>Cancelled</b></td><td>Order / Payment</td><td>Allowed from Pending / Paid</td></tr>
+    </table>
+  </section>
+
+  <!-- 5. Contracts -->
+  <h2><span class="num">05</span>Data contracts — what each person hands off</h2>
+  <section>
+    <p class="lead">Agree on these JSON shapes and everyone can build in parallel.</p>
+
+    <div class="contract">
+      <div class="h"><span class="from">Amirul (Menu)</span> <span class="to">→ everyone · a menu item</span></div>
+<pre><span class="c">// Order page shows name/desc/price/picture. Order STORES only a snapshot of id+name+price.</span>
+{ <span class="k">"menuId"</span>:1, <span class="k">"name"</span>:<span class="s">"Beef Burger"</span>, <span class="k">"description"</span>:<span class="s">"..."</span>,
+  <span class="k">"unitPrice"</span>:10.00, <span class="k">"imageUrl"</span>:<span class="s">"https://.../burger.jpg"</span>, <span class="k">"available"</span>:true }</pre>
+    </div>
+
+    <div class="contract">
+      <div class="h"><span class="from">Hanif (Order)</span> <span class="to">→ Aiman · payment request</span></div>
+<pre><span class="c">// total ALREADY includes the 6% SST — Aiman just charges it</span>
+{ <span class="k">"reference"</span>:<span class="s">"FRK-1001"</span>, <span class="k">"orderId"</span>:12, <span class="k">"userId"</span>:7,
+  <span class="k">"totalAmount"</span>:53.00, <span class="k">"currency"</span>:<span class="s">"MYR"</span> }</pre>
+    </div>
+
+    <div class="contract">
+      <div class="h"><span class="from">Hanif (Order)</span> <span class="to">→ Zul · kitchen ticket</span></div>
+<pre>{ <span class="k">"reference"</span>:<span class="s">"FRK-1001"</span>, <span class="k">"orderId"</span>:12, <span class="k">"userId"</span>:7,
+  <span class="k">"items"</span>:[ {<span class="k">"itemName"</span>:<span class="s">"Beef Burger"</span>,<span class="k">"quantity"</span>:2},
+            {<span class="k">"itemName"</span>:<span class="s">"Coffee"</span>,<span class="k">"quantity"</span>:1} ] }</pre>
+    </div>
+
+    <div class="contract">
+      <div class="h"><span class="from">Aiman (Payment)</span> <span class="to">→ Order + Kitchen · payment confirmed</span></div>
+<pre>{ <span class="k">"reference"</span>:<span class="s">"FRK-1001"</span>, <span class="k">"orderId"</span>:12, <span class="k">"status"</span>:<span class="s">"Paid"</span>, <span class="k">"paidAt"</span>:<span class="s">"..."</span> }</pre>
+    </div>
+
+    <div class="contract">
+      <div class="h"><span class="from">Zul (Kitchen)</span> <span class="to">→ Order + Tracker · status update</span></div>
+<pre>{ <span class="k">"orderId"</span>:12, <span class="k">"status"</span>:<span class="s">"Preparing"</span> }   <span class="c">// then "Completed", then "OutForDelivery"</span></pre>
+    </div>
+
+    <div class="contract" style="margin-bottom:0">
+      <div class="h"><span class="from">Alia (Tracker)</span> <span class="to">→ UI · mock tracker</span></div>
+<pre>{ <span class="k">"orderId"</span>:12, <span class="k">"status"</span>:<span class="s">"OutForDelivery"</span>, <span class="k">"etaMinutes"</span>:22, <span class="k">"deliveredAt"</span>:null }
+<span class="c">// etaMinutes is the MOCK — random or preset, no real GPS</span></pre>
+    </div>
+  </section>
+
+  <!-- 6. Roles -->
+  <h2><span class="num">06</span>Roles &amp; login routing</h2>
+  <section>
+    <p class="lead">The User service puts a <b>role</b> inside the JWT. The frontend reads it and routes; every backend already trusts the same token.</p>
+    <table>
+      <tr><th>Role</th><th>Lands on</th><th>Can see</th></tr>
+      <tr><td><b>Customer</b></td><td>Landing page</td><td>Menu, cart, order, payment, tracker, own profile + history</td></tr>
+      <tr><td><b>Admin</b></td><td>Admin dashboard</td><td>User mgmt, Menu mgmt, Reports, Kitchen overview (read-only)</td></tr>
+      <tr><td><b>Crew</b> <span class="pill p-opt">NEW — Izzuwan adds</span></td><td>Kitchen crew screen (Zul)</td><td>Order queue + status buttons only</td></tr>
+    </table>
+  </section>
+
+  <!-- 7. Build order -->
+  <h2><span class="num">07</span>Recommended build order</h2>
+  <section>
+    <p class="lead">Sequenced by dependency, so nobody is blocked waiting on a contract that doesn't exist yet.</p>
+    <ol class="steps">
+      <li><b>Izzuwan — User:</b> login + JWT + roles. Everyone needs the token first. <i>(mostly done)</i></li>
+      <li><b>Amirul — Menu:</b> menu API. The landing/order pages need it.</li>
+      <li><b>Hanif — Order:</b> built ✅ — wire it to Amirul's menu; add <code>Reference</code>, <code>OutForDelivery/Delivered</code> statuses, and a status-update endpoint.</li>
+      <li><b>Aiman — Payment:</b> needs the order reference + total.</li>
+      <li><b>Zul — Kitchen:</b> needs orders (Hanif) + paid signal (Aiman) + the Crew role (Izzuwan).</li>
+      <li><b>Alia — Tracker:</b> last in the chain; consumes status events from everyone.</li>
+    </ol>
+    <div class="callout warn" style="margin-bottom:0">
+      <b>Note for the profile page:</b> orders live in the Order Service's own database, not in Izzuwan's tables. So the profile page should <b>fetch</b> history from <code>GET /api/orders/user/{userId}</code> (pull model), not read its own DB.
+    </div>
+  </section>
+
+  <div class="foot">Forkly — System Architecture &amp; Data Flow · Team reference v1 · generated for the project team</div>
+</div>
+</body>
+</html>

@@ -12,7 +12,10 @@ const qty = computed(() => qtyOf(props.item.id))
 
 <template>
   <article class="item">
-    <div class="item-emoji" aria-hidden="true">{{ item.emoji }}</div>
+    <div class="item-media" aria-hidden="true">
+      <img v-if="item.image" :src="item.image" :alt="item.name" class="item-img" loading="lazy" />
+      <span v-else class="item-emoji">{{ item.emoji }}</span>
+    </div>
 
     <div class="item-body">
       <h3 class="item-name">{{ item.name }}</h3>
@@ -53,16 +56,18 @@ const qty = computed(() => qtyOf(props.item.id))
   transform: translateY(-2px);
 }
 
-.item-emoji {
+.item-media {
   flex: none;
   width: 56px;
   height: 56px;
   display: grid;
   place-items: center;
-  font-size: 1.9rem;
   background: var(--color-surface);
   border-radius: 12px;
+  overflow: hidden;
 }
+.item-emoji { font-size: 1.9rem; }
+.item-img { width: 100%; height: 100%; object-fit: cover; }
 
 .item-body { flex: 1 1 auto; min-width: 0; }
 .item-name { margin: 0 0 2px; font-size: 1.05rem; font-weight: 700; color: var(--color-ink); }
