@@ -1,8 +1,9 @@
 # Assets
 
-Drop the brand logo here as `forkly-logo.png` to replace the placeholder.
+The single brand logo for the app lives here as `forkly-transparent-logo.png`.
 
-- Expected path: `public/assets/forkly-logo.png` → served at `/assets/forkly-logo.png`
+- Expected path: `public/assets/forkly-transparent-logo.png` → served at `/assets/forkly-transparent-logo.png`
 - Recommended: transparent PNG/SVG, ~120×36px (the header caps it at 36px tall)
-- No code change needed — `BrandLogo.vue` already points at `/assets/forkly-logo.png`.
-  Until the file exists, a `[ FORKLY LOGO ]` text fallback is shown automatically.
+- `BrandLogo.vue` points at `/assets/forkly-transparent-logo.png`. To swap the
+  logo, replace this file (keep the name). If it is ever missing, a
+  `[ FORKLY LOGO ]` text fallback is shown automatically.

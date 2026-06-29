@@ -4,16 +4,18 @@
   <section class="section contact" id="contact">
     <div class="container">
       <h2 class="section-title">Contact Us</h2>
+      <p class="section-sub">Need help? Reach out to us.</p>
       <ul class="contact-list">
         <li>
           <span class="contact-icon" aria-hidden="true">✉️</span>
-          <a href="mailto:support@forkly.com">support@forkly.com</a>
+          <a href="mailto:cs.forkly@yopmail.com">customer.service@forkly.com</a>
         </li>
         <li>
           <span class="contact-icon" aria-hidden="true">📞</span>
-          <a href="tel:+6012xxxxxxx">+60 12-xxx xxxx</a>
+          <a href="tel:0395438888">03-95438888</a>
         </li>
       </ul>
+      <p class="contact-team">Forkly Support Team</p>
     </div>
   </section>
 </template>
@@ -41,4 +43,11 @@
 }
 .contact-list a:hover { color: var(--color-primary); }
 .contact-icon { font-size: 1.2rem; }
+.contact-team {
+  margin: 28px 0 0;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
 </style>

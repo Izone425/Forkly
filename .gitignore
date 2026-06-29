@@ -16,8 +16,17 @@ dist-ssr
 # Claude Code local settings
 .claude/
 
-# Test / debug artifacts (Playwright)
+# .NET build output
+[Bb]in/
+[Oo]bj/
+
+# Test / debug artifacts (Playwright) — root-level screenshots only.
+# (The real logo lives in public/assets/ and is NOT matched by this.)
 .playwright-mcp/
-forkly-landing.png
-forkly-with-logo.png
-forkly-transparent-logo.png
+/forkly-*.png
+
+# Original full-size source images (root only). The optimized, web-ready
+# copies live in public/assets/ and ARE committed.
+/image1.jpg
+/image2.jpg
+/image3.jpg

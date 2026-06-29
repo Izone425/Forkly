@@ -3,8 +3,8 @@
 <template>
   <footer class="site-footer">
     <div class="container footer-inner">
-      <span class="footer-brand">🍴 Forkly</span>
-      <p class="footer-copy">© 2026 Forkly. A microservices training project.</p>
+      <span class="footer-brand">Forkly</span>
+      <p class="footer-copy">© 2026 Forkly.</p>
     </div>
   </footer>
 </template>

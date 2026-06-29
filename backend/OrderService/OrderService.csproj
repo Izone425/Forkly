@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" Version="2.80.0" />
+    <PackageReference Include="Grpc.Net.ClientFactory" Version="2.80.0" />
+  </ItemGroup>
+
+  <!-- gRPC code generation from the shared contracts.
+       menu/payment  -> Client (Order consumes them)
+       order         -> Server (Order serves it to other backends) -->
+  <ItemGroup>
+    <Protobuf Include="..\contracts\menu.proto" GrpcServices="Client" Link="Protos\menu.proto" />
+    <Protobuf Include="..\contracts\payment.proto" GrpcServices="Client" Link="Protos\payment.proto" />
+    <Protobuf Include="..\contracts\order.proto" GrpcServices="Server" Link="Protos\order.proto" />
+  </ItemGroup>
+
+</Project>
