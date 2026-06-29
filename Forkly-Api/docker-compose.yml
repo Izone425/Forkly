@@ -1,0 +1,22 @@
+# Optional: run PostgreSQL in Docker instead of a local install.
+# Matches the default ConnectionStrings:DefaultConnection in appsettings.json
+# (set the password to "forkly" via user-secrets to use this as-is):
+#   dotnet user-secrets set "ConnectionStrings:DefaultConnection" \
+#     "Host=localhost;Port=5432;Database=forkly;Username=forkly;Password=forkly"
+#
+#   docker compose up -d
+services:
+  postgres:
+    image: postgres:16
+    container_name: forkly-postgres
+    environment:
+      POSTGRES_DB: forkly
+      POSTGRES_USER: forkly
+      POSTGRES_PASSWORD: forkly
+    ports:
+      - "5432:5432"
+    volumes:
+      - forkly-pgdata:/var/lib/postgresql/data
+
+volumes:
+  forkly-pgdata:

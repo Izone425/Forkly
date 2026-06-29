@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.5209980">
+  <PropertyGroup>
+    <!-- Forkly auth (login/register) app (Vite dev server on http://localhost:5174). -->
+    <StartupCommand>npm run dev</StartupCommand>
+    <ShouldRunBuildScript>false</ShouldRunBuildScript>
+    <BuildOutputFolder>$(MSBuildProjectDirectory)\dist</BuildOutputFolder>
+  </PropertyGroup>
+</Project>
