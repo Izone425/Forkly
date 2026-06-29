@@ -1,0 +1,19 @@
+[
+  {
+    "Name": "All Forkly",
+    "Projects": [
+      {
+        "Path": "Forkly-Api\\Forkly.Api.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Forkly-Landing.esproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Forkly-Auth\\Forkly-Auth.esproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]
