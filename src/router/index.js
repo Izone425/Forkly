@@ -28,6 +28,14 @@ const routes = [
     // Full-page "My Account" (in-app profile UI).
     component: () => import('../views/AccountView.vue'),
   },
+  {
+    // Admin sales report. Izzuwan's admin dashboard routes here when an admin logs
+    // in (same embed pattern as the login drawer). /admin/report is an alias.
+    path: '/report',
+    alias: '/admin/report',
+    name: 'report',
+    component: () => import('../views/ReportView.vue'),
+  },
 ]
 
 export default createRouter({
