@@ -12,6 +12,12 @@ const routes = [
     // Lazy-loaded so the landing page stays lean.
     component: () => import('../views/OrderView.vue'),
   },
+  {
+    path: '/account',
+    name: 'account',
+    // Full-page "My Account" (embeds the user-management profile page).
+    component: () => import('../views/AccountView.vue'),
+  },
 ]
 
 export default createRouter({

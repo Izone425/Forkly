@@ -53,8 +53,8 @@ const grouped = computed(() => {
 
 <template>
   <div class="order-page">
-    <!-- Same header as the landing page, with the cart on the right. -->
-    <AppHeader :show-login="false" show-cart />
+    <!-- Same header as the landing page: keep the login/profile button AND the cart. -->
+    <AppHeader show-cart />
 
     <main class="container order-main">
       <div class="order-intro">

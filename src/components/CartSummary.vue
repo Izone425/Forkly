@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import { useCart } from '../stores/cart.js'
 import { useDeliveryAddress } from '../stores/address.js'
 import { useAuth } from '../stores/auth.js'
@@ -16,6 +16,8 @@ const placing = ref(false)
 const confirmation = ref(null) // { orderId, paymentRedirectUrl, simulated }
 const error = ref('')
 const pendingCheckout = ref(false)
+const justSignedIn = ref(false) // show a brief "review your order" hint after login
+const cartEl = ref(null)
 
 function money(n) {
   return 'RM' + n.toFixed(2)
@@ -37,7 +39,9 @@ function checkout() {
 }
 
 // When the IZZUWAN module reports a successful login, merge the guest cart into
-// the user's cart (never overwrite) and continue the checkout that was pending.
+// the user's cart (never overwrite) and surface the order REVIEW — the user
+// confirms the total + delivery address and places the order themselves (we no
+// longer auto-place behind their back).
 watch(isLoggedIn, (loggedIn) => {
   if (!loggedIn || !pendingCheckout.value) return
   pendingCheckout.value = false
@@ -48,13 +52,23 @@ watch(isLoggedIn, (loggedIn) => {
   // The guest cart is already persisted (localStorage), so it is preserved.
   cart.mergeReorder([], null)
 
-  placeOrder()
+  // Show the review (total + address now visible) and bring it into view.
+  justSignedIn.value = true
+  nextTick(() => cartEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
 })
 
 async function placeOrder() {
   if (cart.isEmpty.value || placing.value) return
+
+  // Require a delivery address — it's shown in the review above the button.
+  if (!address.selected) {
+    error.value = 'Please choose a delivery address before placing your order.'
+    return
+  }
+
   placing.value = true
   error.value = ''
+  justSignedIn.value = false
   confirmation.value = null
   try {
     // Snapshot the chosen delivery address into the order (full object, not id).
@@ -80,7 +94,7 @@ async function placeOrder() {
 </script>
 
 <template>
-  <aside class="cart">
+  <aside class="cart" ref="cartEl">
     <h2 class="cart-title">Your Order</h2>
 
     <!-- After placing: order is created and awaiting payment. No buttons —
@@ -127,6 +141,10 @@ async function placeOrder() {
           <div><dt>SST (6%)</dt><dd>{{ money(cart.tax.value) }}</dd></div>
           <div class="grand"><dt>Total</dt><dd>{{ money(cart.total.value) }}</dd></div>
         </dl>
+
+        <p v-if="justSignedIn && isLoggedIn" class="cart-signedin" role="status">
+          You're signed in — review your delivery address and total, then place your order.
+        </p>
 
         <!-- Delivery address comes from the user's profile (IZZUWAN), so it only
              shows once signed in — below total, above the place/payment button. -->
@@ -206,6 +224,15 @@ async function placeOrder() {
 .place-btn { padding: 14px 0; font-size: 1.02rem; }
 .place-btn:disabled { opacity: 0.7; cursor: default; transform: none; }
 .cart-hint { margin: 12px 0 0; text-align: center; font-size: 0.82rem; color: var(--color-muted); }
+.cart-signedin {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  color: var(--color-primary-dark, #1e3a8a);
+  background: var(--color-primary-soft);
+  border: 1px solid #cdd9f5;
+  border-radius: var(--radius-sm);
+}
 .cart-error { margin: 0 0 12px; color: #d33; font-size: 0.88rem; }
 
 /* Confirmation */
