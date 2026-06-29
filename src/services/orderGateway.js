@@ -10,6 +10,7 @@
 // =========================================================
 
 import { config } from '../config.js'
+import { getToken } from './authApi.js'
 
 export function isOrderApiConfigured() {
   return Boolean(config.orderApiBase)
@@ -55,10 +56,15 @@ export async function submitOrder(payload) {
     return { ok: true, orderId, simulated: true, paymentRedirectUrl: null }
   }
 
-  // Real submission to the Order service REST API.
+  // Real submission to the Order service REST API. Attach the signed-in user's
+  // bearer token so the order service can identify them (orders are authed).
+  const token = getToken()
   const res = await fetch(`${config.orderApiBase}/v1/orders`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify(payload),
   })
   if (!res.ok) {

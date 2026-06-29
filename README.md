@@ -1,27 +1,26 @@
 # Forkly — Single-Restaurant Food Ordering
 
 A single-restaurant food ordering system built as a microservices training
-project. This repository is the **integrated app**: the Vue landing page, the
-Vue login/account app (**Forkly-Auth**), and the **.NET API** all live here.
+project. This repository is the **integrated app**: one Vue frontend (landing +
+login + register + account) and the **.NET API**.
 
-- **Stack:** Vue 3 (SFC) + Vite (frontends), ASP.NET Core (API), PostgreSQL (SIT)
+- **Stack:** Vue 3 (SFC) + Vite (frontend), ASP.NET Core (API), PostgreSQL (SIT)
 - **Theme:** Enterprise SaaS (blue / white), Inter typography
 
-## The three apps (all must run for login to work)
+## The two apps
 
 | App | Folder | URL |
 |-----|--------|-----|
 | **Forkly-Api** — backend API | `Forkly-Api/` | http://localhost:5080 |
-| **Forkly-Landing** — landing page (this folder) | repo root | http://localhost:5173 |
-| **Forkly-Auth** — login / register / account | `Forkly-Auth/` | http://localhost:5174 |
+| **Forkly-Landing** — the whole frontend (landing, login, account) | repo root | http://localhost:5173 |
 
-> The landing's **Login** drawer embeds Forkly-Auth in an iframe
-> (`VITE_LOGIN_URL=http://localhost:5174/login`, committed in `.env.development`).
-> **If Forkly-Auth isn't running on 5174, the drawer can't load** — so you must
-> start all three. No per-machine env setup is needed; `.env.development` and the
-> API's `appsettings.Development.json` are committed with the right values.
+> Login/register/account are served **in the landing app** (routes `/login`,
+> `/register`, `/account`, plus a slide-in login drawer) and call the API at
+> `http://localhost:5080`. No per-machine env setup is needed; the API base
+> defaults to `:5080` (override with `VITE_API_BASE`), and the API's
+> `appsettings.Development.json` is committed with the right values.
 
-## Getting started — run all three
+## Getting started
 
 ### Option A — one command (no Visual Studio needed)
 
@@ -29,24 +28,23 @@ Vue login/account app (**Forkly-Auth**), and the **.NET API** all live here.
 ./start-all.ps1
 ```
 
-This frees stale ports (5080 / 5173 / 5174), runs `npm install` where
-`node_modules` is missing (landing + Forkly-Auth), and launches all three apps,
-each in its own window. Then open **http://localhost:5173** and click **Login**.
+This frees stale ports (5080 / 5173), runs `npm install` if `node_modules` is
+missing, and launches the API + frontend, each in its own window. Then open
+**http://localhost:5173**.
 
 ### Option B — Visual Studio (F5)
 
 1. Open **`Forkly.sln`**.
-2. Set the startup profile to **All Forkly** (starts API + landing + auth together).
+2. Set the startup profile to **All Forkly** (starts API + landing together).
 3. Press **F5**.
 
-Requires the Visual Studio **Node.js development** workload (the two `.esproj`
-projects need it). The JS SDK restores from NuGet on first open (needs internet).
+Requires the Visual Studio **Node.js development** workload (the `.esproj`
+project needs it). The JS SDK restores from NuGet on first open (needs internet).
 
 ### Run a single app manually
 
 ```bash
-npm install && npm run dev          # landing  -> http://localhost:5173
-cd Forkly-Auth && npm install && npm run dev   # auth -> http://localhost:5174
+npm install && npm run dev          # frontend -> http://localhost:5173
 cd Forkly-Api  && dotnet run        # API      -> http://localhost:5080
 ```
 

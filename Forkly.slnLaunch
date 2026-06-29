@@ -9,10 +9,6 @@
       {
         "Path": "Forkly-Landing.esproj",
         "Action": "Start"
-      },
-      {
-        "Path": "Forkly-Auth\\Forkly-Auth.esproj",
-        "Action": "Start"
       }
     ]
   }
