@@ -1,0 +1,25 @@
+@host = http://localhost:5080
+
+### Register a new end-user (returns a JWT)
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{
+  "fullName": "Test User",
+  "email": "test@example.com",
+  "password": "Passw0rd!"
+}
+
+### Login
+# @name login
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "Passw0rd!"
+}
+
+### Current user (paste the token from the login/register response)
+GET {{host}}/api/auth/me
+Authorization: Bearer {{login.response.body.token}}
