@@ -17,7 +17,7 @@ namespace Forkly.MenuService.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasDefaultSchema("menu")
+                .HasDefaultSchema("public")
                 .HasAnnotation("ProductVersion", "8.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
@@ -52,7 +52,7 @@ namespace Forkly.MenuService.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Categories", "menu");
+                    b.ToTable("Categories", "public");
                 });
 
             modelBuilder.Entity("Forkly.MenuService.Models.MenuItem", b =>
@@ -100,7 +100,7 @@ namespace Forkly.MenuService.Migrations
 
                     b.HasIndex("CategoryId", "Availability");
 
-                    b.ToTable("MenuItems", "menu");
+                    b.ToTable("MenuItems", "public");
                 });
 
             modelBuilder.Entity("Forkly.MenuService.Models.MenuItem", b =>

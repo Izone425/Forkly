@@ -26,7 +26,7 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 
 builder.Services.AddDbContext<MenuDbContext>(options =>
     options.UseNpgsql(connectionString, npgsql =>
-        npgsql.MigrationsHistoryTable("__EFMigrationsHistory", MenuDbContext.Schema)));
+        npgsql.MigrationsHistoryTable("__EFMigrationsHistoryMenu", MenuDbContext.Schema)));
 
 // --- Auth: accept JWTs issued by the User service (Forkly-Api). Same key/issuer/audience
 //     so a token from the existing login works here unchanged. The Menu Service issues
