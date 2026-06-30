@@ -35,15 +35,14 @@
 git mv backend/Forkly.MenuService Forkly-MenuApi
 ```
 
-- [ ] **Step 2: Update the solution file** `backend/Forkly.slnx`
+- [ ] **Step 2: Remove the menu project from** `backend/Forkly.slnx`
 
-Replace the menu project line so it points at the new root location:
+The menu service is now a standalone root-level service (like `Forkly-Api`, which has its own solution) and is built/run on its own. The Order service depends on it only over the wire via the shared `menu.proto`, **not** via a project reference, so it does not belong in `backend/Forkly.slnx`. Delete the menu line, leaving:
 
 ```xml
 <Solution>
   <Project Path="OrderService/OrderService.csproj" />
   <Project Path="Forkly.OrderService/Forkly.OrderService.csproj" />
-  <Project Path="..\Forkly-MenuApi\Forkly.MenuService.csproj" />
 </Solution>
 ```
 
@@ -98,6 +97,8 @@ git commit -m "Relocate menu service to repo root as Forkly-MenuApi"
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <!-- TestServerCallContext lives here; explicit ref de-risks the transitive path. -->
+    <PackageReference Include="Grpc.Core.Api" Version="2.80.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Forkly-MenuApi\Forkly.MenuService.csproj" />
@@ -758,10 +759,10 @@ Start-App 'Forkly-Landing' $root                                                
 ```
 Add `5102` to the `Free-Port` port list near the top.
 
-- [ ] **Step 2: Build the whole backend solution**
+- [ ] **Step 2: Build the backend solution and the (now standalone) menu service**
 
-Run: `dotnet build backend/Forkly.slnx`
-Expected: Build succeeded.
+Run: `dotnet build backend/Forkly.slnx` (order + legacy services) and `dotnet build Forkly-MenuApi/Forkly.MenuService.csproj` (menu, no longer in the solution).
+Expected: both Build succeeded.
 
 - [ ] **Step 3: Run all .NET tests**
 
