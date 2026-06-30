@@ -44,15 +44,16 @@ function Start-App($title, $dir, $cmd) {
     )
 }
 
-Write-Host "Freeing ports 5080, 5100, 5173 ..." -ForegroundColor Cyan
-5080, 5100, 5173 | ForEach-Object { Free-Port $_ }
+Write-Host "Freeing ports 5080, 5100, 5102, 5173 ..." -ForegroundColor Cyan
+5080, 5100, 5102, 5173 | ForEach-Object { Free-Port $_ }
 
 Write-Host "Checking frontend dependencies ..." -ForegroundColor Cyan
 Ensure-Deps $root
 
 Write-Host "Starting Forkly (API + Menu service + landing) ..." -ForegroundColor Cyan
 Start-App 'Forkly-API'     (Join-Path $root 'Forkly-Api')                   'dotnet run'
-Start-App 'Forkly-Menu'    (Join-Path $root 'backend/Forkly.MenuService')   'dotnet run'
+Start-App 'Forkly-Menu'    (Join-Path $root 'Forkly-MenuApi')               'dotnet run'
+Start-App 'Forkly-Order'   (Join-Path $root 'backend/Forkly.OrderService')  'dotnet run'
 Start-App 'Forkly-Landing' $root                                            'npm run dev'
 
 Write-Host ""

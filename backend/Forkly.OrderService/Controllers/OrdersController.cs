@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Forkly.OrderService.Dtos;
+using Forkly.OrderService.Menu;
 using Forkly.OrderService.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -33,6 +34,10 @@ public class OrdersController : ControllerBase
         catch (ArgumentException ex)
         {
             return BadRequest(new { error = ex.Message });
+        }
+        catch (MenuUnavailableException ex)
+        {
+            return StatusCode(503, new { error = ex.Message });
         }
     }
 
