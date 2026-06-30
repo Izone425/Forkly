@@ -9,17 +9,19 @@
 // store falls back to the bundled sample menu (src/data/menu.js) so the pages
 // keep working. This module just defines OUR side of the contract.
 //
-// Expected contract (GET {menuApiBase}/api/menu -> array of items). Field-name
-// variants are tolerated so we don't break on Amirul's exact naming:
+// Contract (Amirul's Menu service — GET {menuApiBase}/api/menu -> array of items):
 //   {
-//     "menuId" | "id":        1,
-//     "name":                 "Classic Burger",
-//     "description":          "Beef patty, cheddar, lettuce & house sauce",
-//     "unitPrice" | "price":  10.0,
-//     "imageUrl" | "image" | "picture": "https://.../burger.jpg",
-//     "category":             "Mains",     // optional
-//     "available":            true          // optional, defaults true
+//     "id":            1,
+//     "category":      "Mains",          // category NAME, used for grouping
+//     "name":          "Classic Burger",
+//     "description":   "Beef patty, cheddar, lettuce & house sauce",
+//     "unitPrice":     10.0,             // entity Price, surfaced as unitPrice
+//     "imageUrl":      "https://.../burger.jpg",
+//     "availability":  true,
+//     "stockQuantity": 25
 //   }
+// Field-name variants (price/image/available/menuId) are still tolerated so we
+// don't break if the shape shifts.
 // =========================================================
 
 import { config } from '../config.js'
@@ -31,15 +33,16 @@ export function isMenuApiConfigured() {
 // Map one raw record from the Menu service into the stable shape the UI uses:
 //   { id, name, description, price, image, emoji, category, available }
 export function normalizeMenuItem(raw) {
+  // `||` (not `??`) on image/category so empty strings fall back too.
   return {
     id: raw.id ?? raw.menuId ?? raw._id ?? raw.code,
     name: raw.name ?? raw.itemName ?? '',
     description: raw.description ?? raw.desc ?? '',
-    price: Number(raw.price ?? raw.unitPrice ?? 0),
-    image: raw.image ?? raw.imageUrl ?? raw.picture ?? raw.photo ?? null,
-    emoji: raw.emoji ?? null, // visual fallback when there is no picture
-    category: raw.category ?? 'Menu',
-    available: raw.available !== false,
+    price: Number(raw.unitPrice ?? raw.price ?? 0),
+    image: raw.imageUrl || raw.image || raw.picture || raw.photo || null,
+    emoji: raw.emoji || null, // visual fallback when there is no picture
+    category: raw.category || 'Menu',
+    available: (raw.availability ?? raw.available) !== false,
   }
 }
 
