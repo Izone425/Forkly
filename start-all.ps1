@@ -52,7 +52,7 @@ Ensure-Deps $root
 
 Write-Host "Starting Forkly (API + Menu service + landing) ..." -ForegroundColor Cyan
 Start-App 'Forkly-API'     (Join-Path $root 'Forkly-Api')                   'dotnet run'
-Start-App 'Forkly-Menu'    (Join-Path $root 'backend/Forkly.MenuService')   'dotnet run'
+Start-App 'Forkly-Menu'    (Join-Path $root 'Forkly-MenuApi')               'dotnet run'
 Start-App 'Forkly-Landing' $root                                            'npm run dev'
 
 Write-Host ""

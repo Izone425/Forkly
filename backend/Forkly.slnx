@@ -1,5 +1,4 @@
 <Solution>
   <Project Path="OrderService/OrderService.csproj" />
   <Project Path="Forkly.OrderService/Forkly.OrderService.csproj" />
-  <Project Path="Forkly.MenuService/Forkly.MenuService.csproj" />
 </Solution>
