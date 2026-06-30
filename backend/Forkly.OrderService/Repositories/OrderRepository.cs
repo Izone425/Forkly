@@ -53,4 +53,27 @@ public class OrderRepository : IOrderRepository
             .Where(o => o.Status != OrderStatus.Cancelled)
             .AsNoTracking()
             .ToListAsync(ct);
+
+    public async Task<(IReadOnlyList<Order> Items, int Total)> GetAllAsync(
+        string? status, int? userId, int page, int pageSize, CancellationToken ct = default)
+    {
+        var query = _db.Orders.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(status))
+            query = query.Where(o => o.Status == status);
+        if (userId is not null)
+            query = query.Where(o => o.UserId == userId);
+
+        var total = await query.CountAsync(ct);
+
+        var items = await query
+            .Include(o => o.Items)
+            .OrderByDescending(o => o.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        return (items, total);
+    }
 }

@@ -121,6 +121,28 @@ public class OrderService : IOrderService
         };
     }
 
+    public async Task<PagedResult<OrderResponse>> GetAllAsync(
+        string? status, int? userId, int page, int pageSize, CancellationToken ct = default)
+    {
+        page = page < 1 ? 1 : page;
+        pageSize = pageSize is < 1 or > 100 ? 20 : pageSize;
+
+        // Reject an unknown status filter rather than silently returning everything.
+        if (!string.IsNullOrWhiteSpace(status) && !OrderStatus.IsValid(status))
+            throw new ArgumentException(
+                $"Unknown status '{status}'. Valid values: {string.Join(", ", OrderStatus.All)}.");
+
+        var (orders, total) = await _repo.GetAllAsync(status, userId, page, pageSize, ct);
+
+        return new PagedResult<OrderResponse>
+        {
+            Items = orders.Select(Map).ToList(),
+            Total = total,
+            Page = page,
+            PageSize = pageSize,
+        };
+    }
+
     private static OrderResponse Map(Order o) => new()
     {
         Id = o.Id,

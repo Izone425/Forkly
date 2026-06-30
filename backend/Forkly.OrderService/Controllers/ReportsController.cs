@@ -8,8 +8,9 @@ namespace Forkly.OrderService.Controllers;
 // page (Izzuwan's dashboard routes admins here).
 [ApiController]
 [Route("api/orders/reports")]
-[Authorize] // TODO: tighten to [Authorize(Roles = "Admin")] once the User service's
-            // role claim type is confirmed, so only admins can pull sales figures.
+// Sales figures are admin-only. The role string is lowercase "admin" to match the
+// ClaimTypes.Role claim the User service (Forkly-Api/TokenService) signs into the JWT.
+[Authorize(Roles = "admin")]
 public class ReportsController : ControllerBase
 {
     private readonly IReportService _reports;

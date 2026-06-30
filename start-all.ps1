@@ -1,9 +1,10 @@
 # =====================================================================
 # Forkly — one-command local dev launcher.
 #
-# Brings up both pieces of Forkly:
-#   * Forkly-Api      (.NET backend)  -> http://localhost:5080
-#   * Forkly-Landing  (Vue, this dir) -> http://localhost:5173
+# Brings up Forkly for local dev:
+#   * Forkly-Api         (.NET backend)   -> http://localhost:5080
+#   * Forkly.MenuService (.NET backend)   -> http://localhost:5100
+#   * Forkly-Landing     (Vue, this dir)  -> http://localhost:5173
 #
 # Login, register and account are served IN the landing app now (no separate
 # auth app/port). Run this and you never have to start each piece (or
@@ -43,19 +44,21 @@ function Start-App($title, $dir, $cmd) {
     )
 }
 
-Write-Host "Freeing ports 5080, 5173 ..." -ForegroundColor Cyan
-5080, 5173 | ForEach-Object { Free-Port $_ }
+Write-Host "Freeing ports 5080, 5100, 5173 ..." -ForegroundColor Cyan
+5080, 5100, 5173 | ForEach-Object { Free-Port $_ }
 
 Write-Host "Checking frontend dependencies ..." -ForegroundColor Cyan
 Ensure-Deps $root
 
-Write-Host "Starting Forkly (API + landing) ..." -ForegroundColor Cyan
-Start-App 'Forkly-API'     (Join-Path $root 'Forkly-Api')  'dotnet run'
-Start-App 'Forkly-Landing' $root                           'npm run dev'
+Write-Host "Starting Forkly (API + Menu service + landing) ..." -ForegroundColor Cyan
+Start-App 'Forkly-API'     (Join-Path $root 'Forkly-Api')                   'dotnet run'
+Start-App 'Forkly-Menu'    (Join-Path $root 'backend/Forkly.MenuService')   'dotnet run'
+Start-App 'Forkly-Landing' $root                                            'npm run dev'
 
 Write-Host ""
-Write-Host "Forkly is starting in two separate windows:" -ForegroundColor Green
+Write-Host "Forkly is starting in separate windows:" -ForegroundColor Green
 Write-Host "  API      -> http://localhost:5080"
+Write-Host "  Menu     -> http://localhost:5100   (swagger at /swagger)"
 Write-Host "  Landing  -> http://localhost:5173   (open this one)"
 Write-Host ""
 Write-Host "Give them a few seconds, then open http://localhost:5173."

@@ -224,6 +224,131 @@ public class AccountService : IAccountService
             result.Errors.Select(e => e.Description).ToArray());
     }
 
+    // ---- Admin user management ----
+
+    public async Task<PagedResult<AdminUserListItemDto>> ListUsersAsync(
+        string? search, int page, int pageSize, CancellationToken ct = default)
+    {
+        page = page < 1 ? 1 : page;
+        pageSize = pageSize is < 1 or > 100 ? 20 : pageSize;
+
+        var query = _userManager.Users.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            // Case-insensitive contains over email / name. NormalizedEmail is already
+            // upper-cased by Identity, so match the term against it for emails.
+            var term = search.Trim();
+            var upper = term.ToUpperInvariant();
+            query = query.Where(u =>
+                (u.NormalizedEmail != null && u.NormalizedEmail.Contains(upper)) ||
+                u.FullName.ToUpper().Contains(upper));
+        }
+
+        var total = await query.CountAsync(ct);
+
+        var users = await query
+            .OrderByDescending(u => u.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        var items = new List<AdminUserListItemDto>(users.Count);
+        foreach (var u in users)
+            items.Add(ToListItem(u, await _userManager.GetRolesAsync(u)));
+
+        return new PagedResult<AdminUserListItemDto>
+        {
+            Items = items,
+            Total = total,
+            Page = page,
+            PageSize = pageSize,
+        };
+    }
+
+    public async Task<AdminUserDetailDto?> GetUserDetailAsync(string userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return null;
+
+        var roles = await _userManager.GetRolesAsync(user);
+        return new AdminUserDetailDto
+        {
+            User = await BuildDtoAsync(user, roles),
+            IsAdmin = roles.Contains(Roles.Admin),
+            IsDisabled = IsDisabled(user),
+            CreatedAt = user.CreatedAt,
+        };
+    }
+
+    public async Task<AdminActionResult> SetAdminRoleAsync(string userId, bool makeAdmin, string actingUserId)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return AdminActionResult.Fail(AdminActionError.NotFound, "User not found.");
+
+        var isAdmin = await _userManager.IsInRoleAsync(user, Roles.Admin);
+
+        if (makeAdmin)
+        {
+            if (!isAdmin) await _userManager.AddToRoleAsync(user, Roles.Admin);
+        }
+        else
+        {
+            if (userId == actingUserId)
+                return AdminActionResult.Fail(AdminActionError.SelfAction,
+                    "You cannot remove your own admin role.");
+
+            if (isAdmin)
+            {
+                var admins = await _userManager.GetUsersInRoleAsync(Roles.Admin);
+                if (admins.Count <= 1)
+                    return AdminActionResult.Fail(AdminActionError.LastAdmin,
+                        "Cannot remove the last remaining admin.");
+
+                await _userManager.RemoveFromRoleAsync(user, Roles.Admin);
+            }
+        }
+
+        return AdminActionResult.Ok(ToListItem(user, await _userManager.GetRolesAsync(user)));
+    }
+
+    public async Task<AdminActionResult> SetUserDisabledAsync(string userId, bool disabled, string actingUserId)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return AdminActionResult.Fail(AdminActionError.NotFound, "User not found.");
+
+        if (disabled && userId == actingUserId)
+            return AdminActionResult.Fail(AdminActionError.SelfAction,
+                "You cannot disable your own account.");
+
+        if (disabled)
+        {
+            // Lockout is only honoured at login if it's enabled for the user, so set both.
+            await _userManager.SetLockoutEnabledAsync(user, true);
+            await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+        }
+        else
+        {
+            await _userManager.SetLockoutEndDateAsync(user, null);
+        }
+
+        return AdminActionResult.Ok(ToListItem(user, await _userManager.GetRolesAsync(user)));
+    }
+
+    private static bool IsDisabled(ApplicationUser user) =>
+        user.LockoutEnd is not null && user.LockoutEnd > DateTimeOffset.UtcNow;
+
+    private static AdminUserListItemDto ToListItem(ApplicationUser user, IList<string> roles) => new()
+    {
+        Id = user.Id.ToString(),
+        Email = user.Email ?? string.Empty,
+        FullName = user.FullName,
+        Roles = roles,
+        IsAdmin = roles.Contains(Roles.Admin),
+        IsDisabled = IsDisabled(user),
+        CreatedAt = user.CreatedAt,
+    };
+
     private static string? Clean(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 

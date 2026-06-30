@@ -78,6 +78,25 @@ public class OrdersController : ControllerBase
         return order is null ? NotFound() : Ok(order);
     }
 
+    // GET /api/orders/admin/all?status=&userId=&page=&pageSize= — every order
+    // across all users (newest first), for the admin Orders screen. Admin-only;
+    // the rest of this controller is owner-scoped so this needs its own role guard.
+    [Authorize(Roles = "admin")]
+    [HttpGet("admin/all")]
+    public async Task<IActionResult> GetAll(
+        [FromQuery] string? status, [FromQuery] int? userId,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+    {
+        try
+        {
+            return Ok(await _orders.GetAllAsync(status, userId, page, pageSize, ct));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     // PATCH /api/orders/{orderId}/status — advance the order's status.
     // Used by Payment (→ Paid), Kitchen (→ Preparing/Completed/OutForDelivery),
     // and Tracker (→ Delivered).
