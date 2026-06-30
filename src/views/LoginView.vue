@@ -8,7 +8,12 @@ import LoginForm from '../components/LoginForm.vue'
 const router = useRouter()
 const route = useRoute()
 
-function onSuccess() {
+function onSuccess(user) {
+  // Admins land in the admin area; everyone else follows ?redirect or goes home.
+  if (user?.roles?.includes('admin')) {
+    router.push('/admin')
+    return
+  }
   const dest = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
   router.push(dest)
 }

@@ -13,8 +13,14 @@ import { reactive, computed } from 'vue'
 import { me, getToken, clearToken } from '../services/authApi.js'
 
 const state = reactive({
-  user: null, // { name, email?, fullName?, avatarUrl?, addresses? } | null
+  user: null, // { name, email?, fullName?, roles?, avatarUrl?, addresses? } | null
 })
+
+// Shared promise for the one-time startup hydration. Both App.vue (onMounted) and
+// the router guard call into this; the first caller triggers the actual /me fetch,
+// everyone else awaits the same promise. Lets the admin guard wait for a known
+// auth state on a hard refresh instead of bouncing while user is still null.
+let hydrationPromise = null
 
 // Map an API UserDto onto the shape the landing header/store expect (needs `name`).
 function mapUser(u) {
@@ -23,6 +29,12 @@ function mapUser(u) {
 
 export function useAuth() {
   const isLoggedIn = computed(() => state.user !== null)
+
+  // Roles ride along on the mapped user (mapUser spreads ...u). Lowercase "admin"
+  // matches the role string the API issues in the JWT / UserDto.
+  const isAdmin = computed(
+    () => Array.isArray(state.user?.roles) && state.user.roles.includes('admin'),
+  )
 
   const initials = computed(() => {
     const name = state.user?.name?.trim()
@@ -50,16 +62,26 @@ export function useAuth() {
   }
 
   // Restore the session from a stored token on app start (App.vue onMounted).
-  async function hydrate() {
-    if (!getToken()) return
-    try {
-      state.user = mapUser(await me())
-    } catch {
-      // Token missing/expired/invalid — drop it and stay logged out.
-      clearToken()
-      state.user = null
-    }
+  // Idempotent: the work runs once and the shared promise is reused, so calling
+  // this from both App.vue and the router guard only fetches /me a single time.
+  function hydrate() {
+    if (hydrationPromise) return hydrationPromise
+    hydrationPromise = (async () => {
+      if (!getToken()) return
+      try {
+        state.user = mapUser(await me())
+      } catch {
+        // Token missing/expired/invalid — drop it and stay logged out.
+        clearToken()
+        state.user = null
+      }
+    })()
+    return hydrationPromise
   }
 
-  return { state, isLoggedIn, initials, setUser, signIn, logout, hydrate }
+  // Resolves once the initial hydration attempt has settled. Route guards await
+  // this so they read a settled auth state (not a transient null) on first load.
+  const whenReady = () => hydrate()
+
+  return { state, isLoggedIn, isAdmin, initials, setUser, signIn, logout, hydrate, whenReady }
 }
