@@ -13,11 +13,11 @@ namespace Forkly.MenuService.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.EnsureSchema(
-                name: "menu");
+                name: "public");
 
             migrationBuilder.CreateTable(
                 name: "Categories",
-                schema: "menu",
+                schema: "public",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
@@ -34,7 +34,7 @@ namespace Forkly.MenuService.Migrations
 
             migrationBuilder.CreateTable(
                 name: "MenuItems",
-                schema: "menu",
+                schema: "public",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
@@ -55,7 +55,7 @@ namespace Forkly.MenuService.Migrations
                     table.ForeignKey(
                         name: "FK_MenuItems_Categories_CategoryId",
                         column: x => x.CategoryId,
-                        principalSchema: "menu",
+                        principalSchema: "public",
                         principalTable: "Categories",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -63,14 +63,14 @@ namespace Forkly.MenuService.Migrations
 
             migrationBuilder.CreateIndex(
                 name: "IX_Categories_Name",
-                schema: "menu",
+                schema: "public",
                 table: "Categories",
                 column: "Name",
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_MenuItems_CategoryId_Availability",
-                schema: "menu",
+                schema: "public",
                 table: "MenuItems",
                 columns: new[] { "CategoryId", "Availability" });
         }
@@ -80,11 +80,11 @@ namespace Forkly.MenuService.Migrations
         {
             migrationBuilder.DropTable(
                 name: "MenuItems",
-                schema: "menu");
+                schema: "public");
 
             migrationBuilder.DropTable(
                 name: "Categories",
-                schema: "menu");
+                schema: "public");
         }
     }
 }

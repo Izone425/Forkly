@@ -3,12 +3,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Forkly.MenuService.Data;
 
-// Targets a dedicated PostgreSQL schema "menu" inside the shared foodorder database.
-// Has its own __EFMigrationsHistory, so it is fully isolated from the User service's
-// public.* tables and the Order service's order.* tables.
+// Stores its tables in the shared "public" schema of the foodorder database, alongside
+// the User service's tables. To avoid clashing with the User service's migrations
+// bookkeeping, the Menu service uses its own "__EFMigrationsHistoryMenu" history table
+// (see Program.cs / MenuDbContextDesignFactory).
 public class MenuDbContext : DbContext
 {
-    public const string Schema = "menu";  // critical isolation point
+    public const string Schema = "public";
 
     public MenuDbContext(DbContextOptions<MenuDbContext> options) : base(options) { }
 

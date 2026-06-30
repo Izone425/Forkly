@@ -24,7 +24,7 @@ public class MenuDbContextDesignFactory : IDesignTimeDbContextFactory<MenuDbCont
 
         var options = new DbContextOptionsBuilder<MenuDbContext>()
             .UseNpgsql(conn, npgsql =>
-                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", MenuDbContext.Schema))
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistoryMenu", MenuDbContext.Schema))
             .Options;
 
         return new MenuDbContext(options);
