@@ -39,10 +39,11 @@ async function load(force = false) {
     state.source = 'api'
     state.loaded = true
   } catch (e) {
-    // Graceful fallback so the page still works if the Menu service is down.
+    // The service is configured but unreachable. Surface an error and show nothing
+    // rather than silently swapping in the bundled sample menu (which can't be saved).
     state.error = e?.message || 'Could not load the menu.'
-    state.items = FALLBACK
-    state.source = 'fallback'
+    state.items = []
+    state.source = 'error'
     state.loaded = true
   } finally {
     state.loading = false
