@@ -1,15 +1,16 @@
 <script setup>
-import { reactive, ref, computed } from 'vue'
+import { reactive, ref, computed, watch } from 'vue'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
+  // Whether the profile still has room to SAVE a new address (cap is 3).
+  canSave: { type: Boolean, default: true },
+  saving: { type: Boolean, default: false },
 })
 const emit = defineEmits(['close', 'submit'])
 
 const form = reactive({
   label: 'Home',
-  recipientName: '',
-  phone: '',
   addressLine1: '',
   addressLine2: '',
   postcode: '',
@@ -19,11 +20,16 @@ const form = reactive({
 })
 const saveToProfile = ref(false)
 
+// Can't tick "save" when the profile is already at the 3-address cap.
+watch(
+  () => props.canSave,
+  (ok) => { if (!ok) saveToProfile.value = false },
+  { immediate: true },
+)
+
 const valid = computed(
   () =>
     form.label &&
-    form.recipientName.trim() &&
-    form.phone.trim() &&
     form.addressLine1.trim() &&
     form.postcode.trim() &&
     form.city.trim() &&
@@ -32,19 +38,21 @@ const valid = computed(
 
 function reset() {
   Object.assign(form, {
-    label: 'Home', recipientName: '', phone: '', addressLine1: '',
+    label: 'Home', addressLine1: '',
     addressLine2: '', postcode: '', city: '', state: '', notes: '',
   })
   saveToProfile.value = false
 }
 
 function close() {
+  if (props.saving) return
   emit('close')
 }
 
 function submit() {
-  if (!valid.value) return
+  if (!valid.value || props.saving) return
   emit('submit', { address: { ...form }, saveToProfile: saveToProfile.value })
+  // Parent closes the modal on success; reset for the next open.
   reset()
 }
 </script>
@@ -66,17 +74,6 @@ function submit() {
               <option>Office</option>
               <option>Other</option>
             </select>
-          </div>
-
-          <div class="field-row">
-            <div class="field">
-              <label for="af-name">Recipient Name</label>
-              <input id="af-name" v-model="form.recipientName" type="text" placeholder="Full name" />
-            </div>
-            <div class="field">
-              <label for="af-phone">Phone Number</label>
-              <input id="af-phone" v-model="form.phone" type="tel" placeholder="01X-XXX XXXX" />
-            </div>
           </div>
 
           <div class="field">
@@ -110,14 +107,17 @@ function submit() {
             <textarea id="af-notes" v-model="form.notes" rows="2" placeholder="e.g. Leave at the guardhouse"></textarea>
           </div>
 
-          <label class="save-toggle">
-            <input v-model="saveToProfile" type="checkbox" />
-            <span>Save this address to my profile for future orders</span>
+          <label class="save-toggle" :class="{ disabled: !canSave }">
+            <input v-model="saveToProfile" type="checkbox" :disabled="!canSave" />
+            <span v-if="canSave">Save this address to my profile for future orders</span>
+            <span v-else>You've reached the maximum of 3 saved addresses — this one will be used for this order only.</span>
           </label>
 
           <div class="addr-actions">
-            <button type="button" class="btn btn-ghost" @click="close">Cancel</button>
-            <button type="submit" class="btn btn-primary" :disabled="!valid">Use Address</button>
+            <button type="button" class="btn btn-ghost" :disabled="saving" @click="close">Cancel</button>
+            <button type="submit" class="btn btn-primary" :disabled="!valid || saving">
+              {{ saving ? 'Saving…' : (saveToProfile ? 'Save & Use' : 'Use Address') }}
+            </button>
           </div>
         </form>
       </div>
@@ -214,6 +214,7 @@ function submit() {
   cursor: pointer;
 }
 .save-toggle input { width: 16px; height: 16px; }
+.save-toggle.disabled { color: var(--color-muted); cursor: default; }
 
 .addr-actions { display: flex; gap: 10px; margin-top: 4px; }
 .addr-actions .btn { flex: 1; padding: 12px 0; text-align: center; }
