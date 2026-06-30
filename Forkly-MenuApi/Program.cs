@@ -1,25 +1,36 @@
 using System.Text;
-using Forkly.OrderService.Data;
-using Forkly.OrderService.Menu;
-using Forkly.OrderService.Repositories;
-using Forkly.OrderService.Services;
+using Forkly.MenuService.Data;
+using Forkly.MenuService.Repositories;
+using Forkly.MenuService.Services;
+using Forkly.MenuService.Services.Grpc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- Database: the shared SIT "foodorder" DB, but our own isolated "order" schema. ---
+// Two deterministic dev endpoints (mirrors Forkly-Api):
+//   5100 — HTTP/1.1+2: REST (browser + admin CRUD).
+//   5102 — HTTP/2 cleartext (h2c): native gRPC for the Order service.
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenLocalhost(5100, listen => listen.Protocols = HttpProtocols.Http1AndHttp2);
+    options.ListenLocalhost(5102, listen => listen.Protocols = HttpProtocols.Http2);
+});
+
+// --- Database: the shared SIT "foodorder" DB, but our own isolated "menu" schema. ---
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException(
         "ConnectionStrings:DefaultConnection is not configured (see appsettings.Development.json).");
 
-builder.Services.AddDbContext<OrderDbContext>(options =>
+builder.Services.AddDbContext<MenuDbContext>(options =>
     options.UseNpgsql(connectionString, npgsql =>
-        npgsql.MigrationsHistoryTable("__EFMigrationsHistory", OrderDbContext.Schema)));
+        npgsql.MigrationsHistoryTable("__EFMigrationsHistoryMenu", MenuDbContext.Schema)));
 
 // --- Auth: accept JWTs issued by the User service (Forkly-Api). Same key/issuer/audience
-//     so a token from the existing login works here unchanged. ---
+//     so a token from the existing login works here unchanged. The Menu Service issues
+//     no tokens of its own — it only validates and authorises admin write endpoints. ---
 var jwt = builder.Configuration.GetSection("Jwt");
 var jwtKey = jwt["Key"];
 if (string.IsNullOrWhiteSpace(jwtKey))
@@ -47,25 +58,13 @@ builder.Services
 builder.Services.AddAuthorization();
 
 // --- Clean architecture wiring: Controller -> Service -> Repository -> DbContext. ---
-builder.Services.AddScoped<IOrderRepository, OrderRepository>();
-builder.Services.AddScoped<IOrderService, OrderService>();
-builder.Services.AddScoped<IReportService, ReportService>();
-
-// --- Menu client: real gRPC when configured, else an offline mock (Menu:UseMock). ---
-builder.Services.Configure<MenuOptions>(builder.Configuration.GetSection("Menu"));
-var menuOptions = builder.Configuration.GetSection("Menu").Get<MenuOptions>() ?? new MenuOptions();
-if (menuOptions.ResolveMode() == MenuCatalogMode.Mock)
-{
-    builder.Services.AddSingleton<IMenuCatalog, MockMenuCatalog>();
-}
-else
-{
-    builder.Services.AddGrpcClient<Forkly.Contracts.Menu.MenuService.MenuServiceClient>(o =>
-        o.Address = new Uri(menuOptions.GrpcAddress));
-    builder.Services.AddScoped<IMenuCatalog, MenuGrpcCatalog>();
-}
+builder.Services.AddScoped<IMenuRepository, MenuRepository>();
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<IMenuService, MenuService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
 
 builder.Services.AddControllers();
+builder.Services.AddGrpc();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -75,6 +74,14 @@ builder.Services.AddCors(options => options.AddPolicy(CorsPolicy, policy =>
     policy.SetIsOriginAllowed(_ => true).AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
 
 var app = builder.Build();
+
+// Apply migrations and seed the sample menu on startup so a fresh clone has data.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<MenuDbContext>();
+    await db.Database.MigrateAsync();
+    await MenuSeeder.SeedAsync(db);
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -86,5 +93,6 @@ app.UseCors(CorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapGrpcService<MenuGrpcService>();
 
 app.Run();

@@ -19,12 +19,11 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     <PackageReference Include="Grpc.AspNetCore" Version="2.80.0" />
-    <PackageReference Include="Grpc.Net.ClientFactory" Version="2.80.0" />
   </ItemGroup>
 
-  <!-- gRPC client generated from the shared menu contract (Order consumes the Menu service). -->
+  <!-- gRPC server generated from the shared contract. The Order service is the client. -->
   <ItemGroup>
-    <Protobuf Include="..\contracts\menu.proto" GrpcServices="Client" Link="Protos\menu.proto" />
+    <Protobuf Include="..\backend\contracts\menu.proto" GrpcServices="Server" Link="Protos\menu.proto" />
   </ItemGroup>
 
 </Project>

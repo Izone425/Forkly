@@ -1,4 +1,5 @@
 using Forkly.OrderService.Dtos;
+using Forkly.OrderService.Menu;
 using Forkly.OrderService.Models;
 using Forkly.OrderService.Repositories;
 
@@ -10,8 +11,13 @@ public class OrderService : IOrderService
     private const decimal SstRate = 0.06m;
 
     private readonly IOrderRepository _repo;
+    private readonly IMenuCatalog _menu;
 
-    public OrderService(IOrderRepository repo) => _repo = repo;
+    public OrderService(IOrderRepository repo, IMenuCatalog menu)
+    {
+        _repo = repo;
+        _menu = menu;
+    }
 
     public async Task<OrderResponse> CreateAsync(int userId, CreateOrderRequest request, CancellationToken ct = default)
     {
@@ -20,15 +26,25 @@ public class OrderService : IOrderService
 
         var now = DateTimeOffset.UtcNow;
 
-        var items = request.Items
-            .Select(i => new OrderItem
+        // Validate each line against the Menu service over gRPC and take the menu's
+        // authoritative name + price — the client-sent name/price are never trusted.
+        var items = new List<OrderItem>();
+        foreach (var i in request.Items)
+        {
+            var info = await _menu.GetItemAsync(i.MenuId, ct);
+            if (info is null)
+                throw new ArgumentException($"Menu item {i.MenuId} does not exist.");
+            if (!info.Available)
+                throw new ArgumentException($"'{info.Name}' is currently unavailable.");
+
+            items.Add(new OrderItem
             {
                 MenuId = i.MenuId,
-                ItemName = i.ItemName,
-                Price = i.Price,
+                ItemName = info.Name,   // authoritative name from the Menu service
+                Price = info.Price,     // authoritative price — the client-sent price is ignored
                 Quantity = i.Quantity,
-            })
-            .ToList();
+            });
+        }
 
         // Money is computed server-side from the line snapshots; never trust client totals.
         // Half-up rounding to match printed-receipt conventions (not banker's rounding).
@@ -118,6 +134,28 @@ public class OrderService : IOrderService
                     Quantity = i.Quantity,
                 })
                 .ToList(),
+        };
+    }
+
+    public async Task<PagedResult<OrderResponse>> GetAllAsync(
+        string? status, int? userId, int page, int pageSize, CancellationToken ct = default)
+    {
+        page = page < 1 ? 1 : page;
+        pageSize = pageSize is < 1 or > 100 ? 20 : pageSize;
+
+        // Reject an unknown status filter rather than silently returning everything.
+        if (!string.IsNullOrWhiteSpace(status) && !OrderStatus.IsValid(status))
+            throw new ArgumentException(
+                $"Unknown status '{status}'. Valid values: {string.Join(", ", OrderStatus.All)}.");
+
+        var (orders, total) = await _repo.GetAllAsync(status, userId, page, pageSize, ct);
+
+        return new PagedResult<OrderResponse>
+        {
+            Items = orders.Select(Map).ToList(),
+            Total = total,
+            Page = page,
+            PageSize = pageSize,
         };
     }
 

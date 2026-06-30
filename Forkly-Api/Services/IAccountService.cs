@@ -31,4 +31,21 @@ public interface IAccountService
 
     // Change the password (requires the correct current password).
     Task<AccountResult> ChangePasswordAsync(string userId, string currentPassword, string newPassword);
+
+    // ---- Admin user management (admin-only callers; the controller enforces the role) ----
+
+    // Paged list of all users with roles + lockout state. Optional case-insensitive
+    // search over email / full name.
+    Task<PagedResult<AdminUserListItemDto>> ListUsersAsync(string? search, int page, int pageSize, CancellationToken ct = default);
+
+    // Full detail for one user (profile + admin flags). Null if the user is gone.
+    Task<AdminUserDetailDto?> GetUserDetailAsync(string userId);
+
+    // Add/remove the "admin" role. Refuses to remove the last admin or the caller's
+    // own admin role. actingUserId is the id from the caller's JWT.
+    Task<AdminActionResult> SetAdminRoleAsync(string userId, bool makeAdmin, string actingUserId);
+
+    // Disable (permanent lockout) / enable (clear lockout) an account. Refuses to
+    // disable the caller's own account.
+    Task<AdminActionResult> SetUserDisabledAsync(string userId, bool disabled, string actingUserId);
 }
