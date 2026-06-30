@@ -54,7 +54,7 @@ builder.Services.AddScoped<IReportService, ReportService>();
 // --- Menu client: real gRPC when configured, else an offline mock (Menu:UseMock). ---
 builder.Services.Configure<MenuOptions>(builder.Configuration.GetSection("Menu"));
 var menuOptions = builder.Configuration.GetSection("Menu").Get<MenuOptions>() ?? new MenuOptions();
-if (menuOptions.UseMock || string.IsNullOrWhiteSpace(menuOptions.GrpcAddress))
+if (menuOptions.ResolveMode() == MenuCatalogMode.Mock)
 {
     builder.Services.AddSingleton<IMenuCatalog, MockMenuCatalog>();
 }

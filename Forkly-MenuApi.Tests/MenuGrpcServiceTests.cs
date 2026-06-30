@@ -57,4 +57,25 @@ public class MenuGrpcServiceTests
         var ex = await Assert.ThrowsAsync<RpcException>(() => svc.GetItemCoreAsync("abc", CancellationToken.None));
         Assert.Equal(StatusCode.NotFound, ex.StatusCode);
     }
+
+    [Fact]
+    public void MapToProto_passes_through_name_and_marks_unavailable_with_empty_emoji()
+    {
+        var dto = new MenuItemResponse { Id = 4, Name = "Sold Out Steak", Description = "x", UnitPrice = 52.90m, Category = "Steak", Availability = false };
+        var proto = MenuGrpcService.MapToProto(dto);
+        Assert.Equal("Sold Out Steak", proto.Name);
+        Assert.False(proto.Available);
+        Assert.Equal(string.Empty, proto.Emoji);   // entity has no emoji
+        Assert.Equal(5290, proto.PriceCents);
+    }
+
+    [Fact]
+    public async Task GetMenuCore_maps_items_from_the_service()
+    {
+        var svc = new MenuGrpcService(new StubMenuService { Item = new MenuItemResponse { Id = 1, Name = "Burger", UnitPrice = 10.00m, Availability = true } });
+        var response = await svc.GetMenuCoreAsync(CancellationToken.None);
+        Assert.Single(response.Items);
+        Assert.Equal("1", response.Items[0].Id);
+        Assert.Equal(1000, response.Items[0].PriceCents);
+    }
 }

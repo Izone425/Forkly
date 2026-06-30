@@ -15,6 +15,12 @@ public class OrderServiceCreateTests
             => Task.FromResult(Result is null ? null : Result with { Id = menuId });
     }
 
+    private sealed class UnavailableMenuCatalog : IMenuCatalog
+    {
+        public Task<MenuItemInfo?> GetItemAsync(int menuId, CancellationToken ct = default)
+            => throw new MenuUnavailableException("menu down");
+    }
+
     private sealed class FakeOrderRepository : IOrderRepository
     {
         public Order? Saved { get; private set; }
@@ -57,5 +63,13 @@ public class OrderServiceCreateTests
         var sut = new Forkly.OrderService.Services.OrderService(new FakeOrderRepository(), new FakeMenuCatalog { Result = new MenuItemInfo(0, "Sold Out", 10m, false) });
         var req = new CreateOrderRequest { Items = { new CreateOrderItemDto { MenuId = 8, ItemName = "x", Price = 1m, Quantity = 1 } } };
         await Assert.ThrowsAsync<ArgumentException>(() => sut.CreateAsync(1, req));
+    }
+
+    [Fact]
+    public async Task CreateAsync_propagates_MenuUnavailable_when_menu_is_down()
+    {
+        var sut = new Forkly.OrderService.Services.OrderService(new FakeOrderRepository(), new UnavailableMenuCatalog());
+        var req = new CreateOrderRequest { Items = { new CreateOrderItemDto { MenuId = 1, ItemName = "x", Price = 1m, Quantity = 1 } } };
+        await Assert.ThrowsAsync<MenuUnavailableException>(() => sut.CreateAsync(1, req));
     }
 }

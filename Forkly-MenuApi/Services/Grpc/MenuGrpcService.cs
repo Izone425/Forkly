@@ -14,9 +14,13 @@ public class MenuGrpcService : Forkly.Contracts.Menu.MenuService.MenuServiceBase
 
     public MenuGrpcService(IMenuService menu) => _menu = menu;
 
-    public override async Task<GetMenuResponse> GetMenu(GetMenuRequest request, ServerCallContext context)
+    public override Task<GetMenuResponse> GetMenu(GetMenuRequest request, ServerCallContext context)
+        => GetMenuCoreAsync(context.CancellationToken);
+
+    // Transport-free core so the available-only filter + mapping are unit-testable.
+    public async Task<GetMenuResponse> GetMenuCoreAsync(CancellationToken ct)
     {
-        var items = await _menu.GetMenuAsync(availableOnly: true, context.CancellationToken);
+        var items = await _menu.GetMenuAsync(availableOnly: true, ct);
         var response = new GetMenuResponse();
         response.Items.AddRange(items.Select(MapToProto));
         return response;
