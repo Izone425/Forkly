@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import LandingView from '../views/LandingView.vue'
+import { useAuth } from '../stores/auth.js'
 
 // Page-level routing for the Forkly frontend.
 // Login/register/account are served in-app (no separate auth service). The Login
@@ -29,16 +30,31 @@ const routes = [
     component: () => import('../views/AccountView.vue'),
   },
   {
-    // Admin sales report. Izzuwan's admin dashboard routes here when an admin logs
-    // in (same embed pattern as the login drawer). /admin/report is an alias.
+    // Standalone admin sales report (kept for backwards-compatible deep links).
+    // The guarded entry point is /admin/reports below; the old /admin/report alias
+    // was removed so there's no admin-looking URL that skips the role guard.
     path: '/report',
-    alias: '/admin/report',
     name: 'report',
     component: () => import('../views/ReportView.vue'),
   },
+  {
+    // Admin area. The parent carries the role guard (meta.requiresAdmin); children
+    // render inside AdminLayout's <RouterView>. Admins are sent here on login.
+    path: '/admin',
+    component: () => import('../views/AdminLayout.vue'),
+    meta: { requiresAdmin: true },
+    children: [
+      { path: '', name: 'admin-dashboard', component: () => import('../views/AdminDashboard.vue') },
+      { path: 'users', name: 'admin-users', component: () => import('../views/AdminUsers.vue') },
+      { path: 'orders', name: 'admin-orders', component: () => import('../views/AdminOrders.vue') },
+      { path: 'menu', name: 'admin-menu', component: () => import('../views/AdminMenu.vue') },
+      // Reuse the existing sales report page unchanged as the reports child.
+      { path: 'reports', name: 'admin-reports', component: () => import('../views/ReportView.vue') },
+    ],
+  },
 ]
 
-export default createRouter({
+const router = createRouter({
   history: createWebHistory(),
   routes,
   scrollBehavior(to, from, savedPosition) {
@@ -51,3 +67,19 @@ export default createRouter({
     return { top: 0 }
   },
 })
+
+// Admin route guard. UX-only — the backend enforces the real gate ([Authorize(
+// Roles="admin")] on every admin endpoint). We await whenReady() so a hard refresh
+// of an /admin/* URL waits for session hydration instead of bouncing a real admin.
+router.beforeEach(async (to) => {
+  if (!to.matched.some((r) => r.meta.requiresAdmin)) return true
+
+  const { state, isAdmin, whenReady } = useAuth()
+  await whenReady()
+
+  if (!state.user) return { name: 'login', query: { redirect: to.fullPath } }
+  if (!isAdmin.value) return { path: '/' }
+  return true
+})
+
+export default router

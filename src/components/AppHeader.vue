@@ -14,7 +14,7 @@ defineProps({
 })
 
 // Login UI is owned by the IZZUWAN module — we only open its drawer (no redirect).
-const { state: auth, isLoggedIn, initials, logout } = useAuth()
+const { state: auth, isLoggedIn, isAdmin, initials, logout } = useAuth()
 const { count } = useCart()
 </script>
 
@@ -68,6 +68,7 @@ const { count } = useCart()
           </button>
 
           <div v-else class="profile">
+            <RouterLink v-if="isAdmin" to="/admin" class="profile-admin">Admin</RouterLink>
             <RouterLink to="/account" class="profile-trigger" title="My account">
               <span class="profile-avatar" aria-hidden="true">{{ initials }}</span>
               <span class="profile-name">{{ auth.user.name }}</span>
@@ -196,6 +197,19 @@ const { count } = useCart()
 }
 
 .profile { display: inline-flex; align-items: center; gap: 12px; }
+/* Admin shortcut — only rendered for admins (v-if isAdmin). */
+.profile-admin {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  border: 1px solid #cdd9f5;
+  padding: 8px 16px;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+.profile-admin:hover { background: #dfe7fb; }
 /* Avatar + name act as one button that opens the "My Account" drawer. */
 .profile-trigger {
   display: inline-flex;
