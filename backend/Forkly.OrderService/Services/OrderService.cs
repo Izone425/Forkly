@@ -1,0 +1,146 @@
+using Forkly.OrderService.Dtos;
+using Forkly.OrderService.Models;
+using Forkly.OrderService.Repositories;
+
+namespace Forkly.OrderService.Services;
+
+public class OrderService : IOrderService
+{
+    // Malaysian SST on prepared food/beverage is 6%. Single source of truth.
+    private const decimal SstRate = 0.06m;
+
+    private readonly IOrderRepository _repo;
+
+    public OrderService(IOrderRepository repo) => _repo = repo;
+
+    public async Task<OrderResponse> CreateAsync(int userId, CreateOrderRequest request, CancellationToken ct = default)
+    {
+        if (request.Items is null || request.Items.Count == 0)
+            throw new ArgumentException("An order must contain at least one item.");
+
+        var now = DateTimeOffset.UtcNow;
+
+        var items = request.Items
+            .Select(i => new OrderItem
+            {
+                MenuId = i.MenuId,
+                ItemName = i.ItemName,
+                Price = i.Price,
+                Quantity = i.Quantity,
+            })
+            .ToList();
+
+        // Money is computed server-side from the line snapshots; never trust client totals.
+        // Half-up rounding to match printed-receipt conventions (not banker's rounding).
+        var subtotal = decimal.Round(items.Sum(i => i.Price * i.Quantity), 2, MidpointRounding.AwayFromZero);
+        var sst = decimal.Round(subtotal * SstRate, 2, MidpointRounding.AwayFromZero);
+        var total = subtotal + sst;
+
+        var order = new Order
+        {
+            UserId = userId,
+            Subtotal = subtotal,
+            Sst = sst,
+            Total = total,
+            Status = OrderStatus.Pending,
+            CreatedAt = now,
+            UpdatedAt = now,
+            Items = items,
+        };
+
+        var saved = await _repo.AddAsync(order, ct);
+
+        // Stamp the human-friendly reference now that the id exists, then persist.
+        // Derived from the unique id, so it is itself unique (no collision risk).
+        saved.Reference = $"FRK-{saved.Id:D4}";
+        await _repo.UpdateAsync(saved, ct);
+
+        return Map(saved);
+    }
+
+    public async Task<OrderResponse?> GetByIdAsync(int orderId, int userId, CancellationToken ct = default)
+    {
+        var order = await _repo.GetByIdAsync(orderId, ct);
+        if (order is null || order.UserId != userId) return null;
+        return Map(order);
+    }
+
+    public async Task<IReadOnlyList<OrderResponse>> GetUserOrdersAsync(int userId, CancellationToken ct = default)
+    {
+        var orders = await _repo.GetByUserAsync(userId, ct);
+        return orders.Select(Map).ToList();
+    }
+
+    public async Task<IReadOnlyList<OrderResponse>> GetRecentAsync(int userId, int count, CancellationToken ct = default)
+    {
+        var orders = await _repo.GetRecentByUserAsync(userId, count, ct);
+        return orders.Select(Map).ToList();
+    }
+
+    public async Task<OrderResponse?> GetByReferenceAsync(string reference, CancellationToken ct = default)
+    {
+        var order = await _repo.GetByReferenceAsync(reference, ct);
+        return order is null ? null : Map(order);
+    }
+
+    public async Task<OrderResponse?> UpdateStatusAsync(int orderId, string status, CancellationToken ct = default)
+    {
+        if (!OrderStatus.IsValid(status))
+            throw new ArgumentException(
+                $"Unknown status '{status}'. Valid values: {string.Join(", ", OrderStatus.All)}.");
+
+        var order = await _repo.GetByIdAsync(orderId, ct);
+        if (order is null) return null;
+
+        order.Status = status;
+        order.UpdatedAt = DateTimeOffset.UtcNow;
+        await _repo.UpdateAsync(order, ct);
+
+        return Map(order);
+    }
+
+    public async Task<ReorderResponse?> ReorderAsync(int orderId, int userId, CancellationToken ct = default)
+    {
+        var order = await _repo.GetByIdAsync(orderId, ct);
+        if (order is null || order.UserId != userId) return null;
+
+        // Read-only: hand the previous order's lines back for the frontend to merge
+        // into the cart. We deliberately do NOT create a new order here.
+        return new ReorderResponse
+        {
+            SourceOrderId = order.Id,
+            Items = order.Items
+                .Select(i => new CartItemDto
+                {
+                    MenuId = i.MenuId,
+                    ItemName = i.ItemName,
+                    Price = i.Price,
+                    Quantity = i.Quantity,
+                })
+                .ToList(),
+        };
+    }
+
+    private static OrderResponse Map(Order o) => new()
+    {
+        Id = o.Id,
+        Reference = o.Reference,
+        UserId = o.UserId,
+        Subtotal = o.Subtotal,
+        Sst = o.Sst,
+        Total = o.Total,
+        Status = o.Status,
+        CreatedAt = o.CreatedAt,
+        UpdatedAt = o.UpdatedAt,
+        Items = o.Items
+            .Select(i => new OrderItemResponse
+            {
+                Id = i.Id,
+                MenuId = i.MenuId,
+                ItemName = i.ItemName,
+                Price = i.Price,
+                Quantity = i.Quantity,
+            })
+            .ToList(),
+    };
+}

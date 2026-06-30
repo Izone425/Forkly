@@ -9,15 +9,14 @@
 // =========================================================
 
 export const config = {
-  // Base URL of the LOGIN page/service (built by another team member).
-  // Example: http://localhost:8081/login  or  https://auth.forkly.local/login
-  // Leave empty until that service is ready — the Login button degrades
-  // gracefully instead of navigating to a broken page.
-  loginUrl: (import.meta.env.VITE_LOGIN_URL || '').trim(),
+  // Base URL of the Forkly .NET API (auth, profile, orders). Login/register/account
+  // are served IN this app now; they call this API directly via services/authApi.js.
+  apiBase: (import.meta.env.VITE_API_BASE || 'http://localhost:5080').trim(),
 
-  // Base URL of the auth microservice's REST/gRPC-web gateway, used only by
-  // the (optional) API-based handoff in services/authGateway.js.
-  authApiBase: (import.meta.env.VITE_AUTH_API_BASE || '').trim(),
+  // Base URL of the MENU microservice (Amirul). The landing + order pages pull the
+  // live menu (name, price, description, picture) from here. When empty, both pages
+  // show the bundled fallback menu so the UI still renders.
+  menuApiBase: (import.meta.env.VITE_MENU_API_BASE || '').trim(),
 
   // Base URL of the ORDER microservice REST/gRPC-web gateway. When empty, the
   // order page accepts orders in a local "demo" mode (no network call).
@@ -27,13 +26,4 @@ export const config = {
   // auto-redirects to the payment page. Until the payment team (other branch)
   // ships, keep this false: the order is created and shown as awaiting payment.
   paymentReady: (import.meta.env.VITE_PAYMENT_READY || '').trim() === 'true',
-
-  // Where the auth service should send the user back to after login.
-  // Defaults to this app's own origin.
-  appOrigin:
-    (import.meta.env.VITE_APP_ORIGIN || '').trim() ||
-    (typeof window !== 'undefined' ? window.location.origin : ''),
 }
-
-// True once the login service URL has been configured.
-export const isLoginConfigured = () => Boolean(config.loginUrl)

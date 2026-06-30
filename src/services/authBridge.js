@@ -1,5 +1,5 @@
 // =========================================================
-// Forkly — Auth bridge to the IZZUWAN Auth Module
+// Forkly — login drawer trigger
 //
 // Login UI + logic are OWNED by the User Service / Auth Module (IZZUWAN).
 // This file is the ONLY integration seam. We never render a login form, drawer,
@@ -32,12 +32,17 @@ function authOrigin() {
 
 // Ask the IZZUWAN module to open its existing login drawer/modal.
 // No redirect, no UI created here.
+// Login, register and account are served IN this app now (src/views/{Login,
+// Register,Profile}View + src/services/authApi.js + stores/auth.js). This module
+// is just the seam to OPEN the slide-in login drawer from anywhere (AppHeader,
+// CartSummary) via a window event the drawer (components/LoginDrawer.vue) listens
+// for. After a successful sign-in the form updates the auth store directly, so
+// CartSummary's watch(isLoggedIn) resumes a pending checkout.
+// =========================================================
+
+// Ask the login drawer to open. No redirect, no UI created here.
 export function openLoginDrawer() {
   if (typeof window === 'undefined') return
-
-  // Preferred: call their module directly if it exposes a global hook.
-  // e.g. window.izzuwanAuth?.openLoginDrawer()
-  // Fallback: broadcast an event their module can subscribe to.
   window.dispatchEvent(new CustomEvent('forkly:open-login-drawer'))
 }
 

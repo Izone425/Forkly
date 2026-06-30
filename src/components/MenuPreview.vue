@@ -20,7 +20,10 @@ onMounted(load)
 
       <div v-else class="menu-grid">
         <article v-for="item in menu.items" :key="item.id" class="menu-card">
-          <div class="menu-emoji" aria-hidden="true">{{ item.emoji }}</div>
+          <div class="menu-media" aria-hidden="true">
+            <img v-if="item.image" :src="item.image" :alt="item.name" class="menu-img" loading="lazy" />
+            <span v-else class="menu-emoji">{{ item.emoji }}</span>
+          </div>
           <h3 class="menu-name">{{ item.name }}</h3>
           <p class="menu-desc">{{ item.description }}</p>
           <p class="menu-price">RM{{ item.price }}</p>
@@ -74,7 +77,18 @@ onMounted(load)
   border-color: #cdd9f5;
 }
 
-.menu-emoji { font-size: 2.6rem; line-height: 1; margin-bottom: 14px; }
+.menu-media {
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 14px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--color-surface);
+}
+.menu-emoji { font-size: 2.6rem; line-height: 1; }
+.menu-img { width: 100%; height: 100%; object-fit: cover; }
 .menu-name { margin: 0 0 6px; font-size: 1.15rem; color: var(--color-ink); font-weight: 700; }
 .menu-desc { margin: 0 0 10px; font-size: 0.88rem; color: var(--color-muted); }
 .menu-price { margin: 0; font-size: 1.3rem; font-weight: 800; color: var(--color-primary); }
