@@ -2,11 +2,22 @@ using System.Text;
 using Forkly.MenuService.Data;
 using Forkly.MenuService.Repositories;
 using Forkly.MenuService.Services;
+using Forkly.MenuService.Services.Grpc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Two deterministic dev endpoints (mirrors Forkly-Api):
+//   5100 — HTTP/1.1+2: REST (browser + admin CRUD).
+//   5102 — HTTP/2 cleartext (h2c): native gRPC for the Order service.
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenLocalhost(5100, listen => listen.Protocols = HttpProtocols.Http1AndHttp2);
+    options.ListenLocalhost(5102, listen => listen.Protocols = HttpProtocols.Http2);
+});
 
 // --- Database: the shared SIT "foodorder" DB, but our own isolated "menu" schema. ---
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -53,6 +64,7 @@ builder.Services.AddScoped<IMenuService, MenuService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 
 builder.Services.AddControllers();
+builder.Services.AddGrpc();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -81,5 +93,6 @@ app.UseCors(CorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapGrpcService<MenuGrpcService>();
 
 app.Run();
