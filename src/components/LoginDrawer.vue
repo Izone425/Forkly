@@ -4,9 +4,10 @@
 // rendering the in-app LoginForm. On success the auth store is already updated,
 // so CartSummary's watch(isLoggedIn) resumes a pending checkout — we just close.
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import LoginForm from './LoginForm.vue'
 
+const router = useRouter()
 const isOpen = ref(false)
 const closeBtn = ref(null)
 
@@ -18,9 +19,11 @@ function close() {
   isOpen.value = false
 }
 
-function onSuccess() {
-  // Profile is set by the form via the auth store; just close the drawer.
+function onSuccess(user) {
+  // Profile is set by the form via the auth store. Close the drawer, and send
+  // admins straight to the admin area (clients stay where they were, e.g. mid-checkout).
   close()
+  if (user?.roles?.includes('admin')) router.push('/admin')
 }
 
 function onKeydown(event) {

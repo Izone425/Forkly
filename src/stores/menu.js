@@ -1,9 +1,11 @@
 // =========================================================
 // Forkly — menu store (shared by landing + order pages)
 //
-// Loads the menu from Amirul's MENU microservice (via services/menuApi.js).
-// If the Menu API isn't configured yet, or the request fails, it falls back to
-// the bundled sample menu so the UI still renders. Loaded once and cached.
+// Loads the menu from the MENU microservice (via services/menuApi.js). When the
+// Menu API is NOT configured, it uses the bundled sample menu so the UI still
+// renders. When it IS configured but the request fails, it shows an error/empty
+// state — it does NOT silently swap in the sample menu (that data can't be saved).
+// Loaded once and cached.
 // =========================================================
 
 import { reactive } from 'vue'
@@ -15,7 +17,7 @@ const state = reactive({
   loading: false,
   loaded: false,
   error: '',
-  source: 'none', // 'api' | 'fallback'
+  source: 'none', // 'none' | 'api' | 'fallback' | 'error'
 })
 
 async function load(force = false) {
@@ -39,10 +41,11 @@ async function load(force = false) {
     state.source = 'api'
     state.loaded = true
   } catch (e) {
-    // Graceful fallback so the page still works if the Menu service is down.
+    // The service is configured but unreachable. Surface an error and show nothing
+    // rather than silently swapping in the bundled sample menu (which can't be saved).
     state.error = e?.message || 'Could not load the menu.'
-    state.items = FALLBACK
-    state.source = 'fallback'
+    state.items = []
+    state.source = 'error'
     state.loaded = true
   } finally {
     state.loading = false

@@ -24,4 +24,9 @@ public interface IOrderService
     // Returns the source order's items for the frontend to merge into the cart.
     // Writes nothing. Null if the order does not exist or is not the caller's.
     Task<ReorderResponse?> ReorderAsync(int orderId, int userId, CancellationToken ct = default);
+
+    // Admin: a page of orders across all users, newest first, optionally filtered
+    // by status and/or user id. Caller authorization is enforced at the controller.
+    Task<PagedResult<OrderResponse>> GetAllAsync(
+        string? status, int? userId, int page, int pageSize, CancellationToken ct = default);
 }

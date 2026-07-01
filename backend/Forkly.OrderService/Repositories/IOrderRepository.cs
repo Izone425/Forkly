@@ -22,4 +22,10 @@ public interface IOrderRepository
 
     // All non-cancelled orders (with items) across all users, for reporting.
     Task<IReadOnlyList<Order>> GetAllForReportAsync(CancellationToken ct = default);
+
+    // Admin: a single page of orders across ALL users (newest first), with the
+    // matching total count. Optional filters by status and/or user id. Unlike the
+    // report query this includes Cancelled orders.
+    Task<(IReadOnlyList<Order> Items, int Total)> GetAllAsync(
+        string? status, int? userId, int page, int pageSize, CancellationToken ct = default);
 }

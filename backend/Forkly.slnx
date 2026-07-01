@@ -1,4 +1,7 @@
 <Solution>
   <Project Path="OrderService/OrderService.csproj" />
   <Project Path="Forkly.OrderService/Forkly.OrderService.csproj" />
+  <Project Path="Forkly.OrderService.Tests/Forkly.OrderService.Tests.csproj" />
+  <Project Path="../Forkly-MenuApi/Forkly.MenuService.csproj" />
+  <Project Path="../Forkly-MenuApi.Tests/Forkly-MenuApi.Tests.csproj" />
 </Solution>

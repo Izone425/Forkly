@@ -60,6 +60,15 @@ public class OrderItemResponse
     public int Quantity { get; set; }
 }
 
+// Generic paged envelope — used by the admin "all orders" listing.
+public class PagedResult<T>
+{
+    public IReadOnlyList<T> Items { get; set; } = new List<T>();
+    public int Total { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+}
+
 // Returned by the reorder endpoint. These items are meant to be merged into the
 // cart by the frontend; the reorder call itself writes nothing to the database.
 public class ReorderResponse
