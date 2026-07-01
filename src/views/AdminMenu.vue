@@ -13,6 +13,8 @@ import {
   updateMenuItem,
   deleteMenuItem,
   setMenuItemAvailability,
+  uploadMenuImage,
+  menuImageUrl,
 } from '../services/menuApi.js'
 import { MENU as SAMPLE_MENU } from '../data/menu.js'
 import { useToast } from '../stores/toast.js'
@@ -28,6 +30,44 @@ const isLive = ref(false)
 
 const configured = isMenuApiConfigured()
 
+// Filter state: free-text search + a category dropdown. Both combine (AND);
+// filtering is client-side over the already-loaded rows, so it's instant.
+const query = ref('')
+const activeCategory = ref('All')
+
+// Distinct categories present in the loaded rows (first-seen order), used to
+// populate the filter dropdown. Derived from items so it works in both the live
+// and sample-data modes.
+const menuCategories = computed(() => {
+  const seen = []
+  for (const it of items.value) {
+    const c = it.category || 'Uncategorized'
+    if (!seen.includes(c)) seen.push(c)
+  }
+  return seen
+})
+
+const filteredItems = computed(() => {
+  const q = query.value.trim().toLowerCase()
+  return items.value.filter((it) => {
+    if (activeCategory.value !== 'All' && (it.category || 'Uncategorized') !== activeCategory.value) {
+      return false
+    }
+    if (q) {
+      const haystack = `${it.name} ${it.description || ''} ${it.category || ''}`.toLowerCase()
+      if (!haystack.includes(q)) return false
+    }
+    return true
+  })
+})
+
+const isFiltering = computed(() => query.value.trim() !== '' || activeCategory.value !== 'All')
+
+function resetFilters() {
+  query.value = ''
+  activeCategory.value = 'All'
+}
+
 // Modal state
 const modalOpen = ref(false)
 const saving = ref(false)
@@ -35,16 +75,43 @@ const formError = ref('')
 const editingId = ref(null)
 const form = ref(blankForm())
 
+// Picture upload state (stored as bytes in the DB, uploaded after the item is saved).
+const imageFile = ref(null)       // the newly-selected File, if any
+const imagePreview = ref('')      // object URL for the selected File
+const existingImageUrl = ref('')  // absolutized current image, when editing
+
 function blankForm() {
   return {
     categoryId: '',
     name: '',
     description: '',
     unitPrice: '',
-    imageUrl: '',
     stockQuantity: 0,
     availability: true,
   }
+}
+
+// Preview the selected file if there is one, otherwise the item's current picture.
+const previewSrc = computed(() => imagePreview.value || existingImageUrl.value)
+
+function resetImageInput() {
+  if (imagePreview.value) URL.revokeObjectURL(imagePreview.value)
+  imageFile.value = null
+  imagePreview.value = ''
+}
+
+function onImageChange(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  if (file.size > 10 * 1024 * 1024) {
+    formError.value = 'Image must be 10 MB or smaller.'
+    event.target.value = ''
+    return
+  }
+  if (imagePreview.value) URL.revokeObjectURL(imagePreview.value)
+  imageFile.value = file
+  imagePreview.value = URL.createObjectURL(file)
+  formError.value = ''
 }
 
 const modalTitle = computed(() => (editingId.value ? 'Edit menu item' : 'Add menu item'))
@@ -89,6 +156,8 @@ function openCreate() {
   editingId.value = null
   form.value = blankForm()
   if (categories.value.length) form.value.categoryId = categories.value[0].id
+  resetImageInput()
+  existingImageUrl.value = ''
   formError.value = ''
   modalOpen.value = true
 }
@@ -100,16 +169,18 @@ function openEdit(item) {
     name: item.name,
     description: item.description ?? '',
     unitPrice: item.unitPrice,
-    imageUrl: item.imageUrl ?? '',
     stockQuantity: item.stockQuantity ?? 0,
     availability: item.availability,
   }
+  resetImageInput()
+  existingImageUrl.value = menuImageUrl(item.imageUrl) ?? ''
   formError.value = ''
   modalOpen.value = true
 }
 
 function closeModal() {
   if (saving.value) return
+  resetImageInput()
   modalOpen.value = false
 }
 
@@ -133,22 +204,30 @@ async function save() {
     name: form.value.name.trim(),
     description: form.value.description.trim(),
     unitPrice: Number(form.value.unitPrice) || 0,
-    imageUrl: form.value.imageUrl.trim(),
     stockQuantity: Number(form.value.stockQuantity) || 0,
     availability: Boolean(form.value.availability),
   }
 
   saving.value = true
   try {
-    if (editingId.value) {
-      const updated = await updateMenuItem(editingId.value, payload)
-      patchRow(updated)
-      show(`Updated “${updated.name}”.`)
-    } else {
-      const created = await createMenuItem(payload)
-      items.value.unshift(created)
-      show(`Added “${created.name}”.`)
+    const editing = editingId.value
+    // Save the item first, then (if a picture was chosen) upload it to the DB. The
+    // upload returns the fully-updated DTO, so we use whichever result is latest.
+    let saved = editing
+      ? await updateMenuItem(editing, payload)
+      : await createMenuItem(payload)
+    if (imageFile.value) {
+      saved = await uploadMenuImage(saved.id, imageFile.value)
     }
+
+    if (editing) {
+      patchRow(saved)
+      show(`Updated “${saved.name}”.`)
+    } else {
+      items.value.unshift(saved)
+      show(`Added “${saved.name}”.`)
+    }
+    resetImageInput()
     modalOpen.value = false
   } catch (err) {
     formError.value = err.message
@@ -209,6 +288,42 @@ onMounted(load)
       Couldn’t reach the Menu service ({{ error }}).
     </p>
 
+    <!-- Search + category filter. Client-side over the loaded rows. -->
+    <div v-if="items.length" class="menu-toolbar">
+      <div class="search">
+        <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M21 21l-4.35-4.35M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+        </svg>
+        <input
+          v-model="query"
+          type="search"
+          class="search-input"
+          placeholder="Search items…"
+          aria-label="Search menu items"
+        />
+        <button
+          v-if="query"
+          type="button"
+          class="search-clear"
+          aria-label="Clear search"
+          @click="query = ''"
+        >
+          ×
+        </button>
+      </div>
+
+      <select v-model="activeCategory" class="cat-select" aria-label="Filter by category">
+        <option value="All">All categories</option>
+        <option v-for="c in menuCategories" :key="c" :value="c">{{ c }}</option>
+      </select>
+    </div>
+
     <div class="menu-table-wrap">
       <table class="menu-table">
         <thead>
@@ -229,9 +344,15 @@ onMounted(load)
           <tr v-else-if="!items.length">
             <td colspan="7" class="menu-empty">No menu items yet.</td>
           </tr>
-          <tr v-for="item in items" v-else :key="item.id">
+          <tr v-else-if="!filteredItems.length">
+            <td colspan="7" class="menu-empty">
+              No items match your search.
+              <button type="button" class="row-btn" @click="resetFilters">Clear filters</button>
+            </td>
+          </tr>
+          <tr v-for="item in filteredItems" v-else :key="item.id">
             <td class="col-img">
-              <img v-if="item.imageUrl" :src="item.imageUrl" :alt="item.name" class="menu-thumb" />
+              <img v-if="item.imageUrl" :src="menuImageUrl(item.imageUrl)" :alt="item.name" class="menu-thumb" />
               <span v-else class="menu-thumb menu-thumb-empty" aria-hidden="true">🍽</span>
             </td>
             <td>
@@ -268,7 +389,10 @@ onMounted(load)
     </div>
 
     <footer class="menu-foot">
-      <span class="menu-count">{{ items.length }} item{{ items.length === 1 ? '' : 's' }}</span>
+      <span class="menu-count">
+        <template v-if="isFiltering">{{ filteredItems.length }} of {{ items.length }} items</template>
+        <template v-else>{{ items.length }} item{{ items.length === 1 ? '' : 's' }}</template>
+      </span>
     </footer>
 
     <!-- Create / edit modal -->
@@ -310,12 +434,18 @@ onMounted(load)
           </div>
 
           <label class="field">
-            <span class="field-label">Image URL (HD)</span>
-            <input v-model="form.imageUrl" type="url" class="field-input" placeholder="https://…" maxlength="2048" />
+            <span class="field-label">Picture</span>
+            <input
+              type="file"
+              class="field-input"
+              accept="image/png,image/jpeg,image/webp"
+              @change="onImageChange"
+            />
+            <span class="field-hint">PNG, JPEG or WebP, up to 10 MB. Stored in the database.</span>
           </label>
 
-          <div v-if="form.imageUrl" class="img-preview">
-            <img :src="form.imageUrl" alt="Preview" />
+          <div v-if="previewSrc" class="img-preview">
+            <img :src="previewSrc" alt="Preview" />
           </div>
 
           <label class="field-check">
@@ -352,6 +482,83 @@ onMounted(load)
 .menu-source { font-size: 0.76rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
 .menu-source.live { color: #047857; background: #d1fae5; }
 .menu-source.mock { color: var(--color-muted); background: var(--color-bg, #eef1f6); }
+
+/* --- Toolbar: search + category filter ------------------------------------- */
+.menu-toolbar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 260px;
+}
+.search-icon {
+  position: absolute;
+  left: 14px;
+  width: 18px;
+  height: 18px;
+  color: var(--color-muted);
+  pointer-events: none;
+}
+.search-input {
+  width: 100%;
+  font: inherit;
+  font-size: 0.93rem;
+  color: var(--color-ink);
+  padding: 10px 40px 10px 40px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.search-input::placeholder { color: var(--color-muted); }
+.search-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+.search-input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+.search-clear {
+  position: absolute;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-bg, #eef1f6);
+  color: var(--color-muted);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.search-clear:hover { background: var(--color-primary); color: #fff; }
+
+.cat-select {
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--color-ink);
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+.cat-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+
+.menu-empty .row-btn { margin-left: 10px; }
 
 .menu-table-wrap {
   background: #fff;
@@ -474,6 +681,7 @@ onMounted(load)
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .field-label { font-size: 0.82rem; font-weight: 700; color: var(--color-body); }
+.field-hint { font-size: 0.78rem; color: var(--color-muted); }
 .field-input {
   font-family: inherit;
   font-size: 0.95rem;

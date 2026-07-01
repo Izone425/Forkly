@@ -18,6 +18,7 @@ const qty = computed(() => qtyOf(props.item.id))
     </div>
 
     <div class="item-body">
+      <span v-if="item.category" class="item-cat">{{ item.category }}</span>
       <h3 class="item-name">{{ item.name }}</h3>
       <p class="item-desc">{{ item.description }}</p>
       <p class="item-price">RM{{ item.price }}</p>
@@ -70,6 +71,18 @@ const qty = computed(() => qtyOf(props.item.id))
 .item-img { width: 100%; height: 100%; object-fit: cover; }
 
 .item-body { flex: 1 1 auto; min-width: 0; }
+.item-cat {
+  display: inline-block;
+  margin-bottom: 5px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  padding: 3px 9px;
+  border-radius: 999px;
+}
 .item-name { margin: 0 0 2px; font-size: 1.05rem; font-weight: 700; color: var(--color-ink); }
 .item-desc {
   margin: 0 0 6px;
