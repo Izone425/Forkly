@@ -15,6 +15,7 @@ public class MenuDbContext : DbContext
 
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
+    public DbSet<MenuItemImage> MenuItemImages => Set<MenuItemImage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -45,6 +46,19 @@ public class MenuDbContext : DbContext
                 .WithMany(c => c.Items)
                 .HasForeignKey(m => m.CategoryId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(m => m.Image)
+                .WithOne(i => i.MenuItem)
+                .HasForeignKey<MenuItemImage>(i => i.MenuItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Uploaded picture bytes, 1:1 with the menu item. MenuItemId doubles as PK.
+        modelBuilder.Entity<MenuItemImage>(e =>
+        {
+            e.ToTable("MenuItemImages");
+            e.HasKey(i => i.MenuItemId);
+            e.Property(i => i.ContentType).HasMaxLength(64);
         });
     }
 }

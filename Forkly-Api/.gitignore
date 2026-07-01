@@ -10,11 +10,6 @@
 # User-uploaded content (avatars)
 wwwroot/uploads/
 
-# Local SQLite database (if the Sqlite provider is used)
-forkly.db
-forkly.db-shm
-forkly.db-wal
-
 # dotenv files
 .env
 

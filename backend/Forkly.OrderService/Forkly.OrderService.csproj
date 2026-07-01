@@ -8,6 +8,11 @@
          net8.0 build to run forward onto it. Safe to remove once the .NET 8
          runtime is installed. The target framework stays net8.0 per spec. -->
     <RollForward>LatestMajor</RollForward>
+    <!-- Don't emit an apphost (Forkly.OrderService.exe). This machine's Windows
+         Application Control policy blocks the freshly-built unsigned apphost, so the
+         service is launched through the trusted, signed `dotnet` host instead. Runs
+         the same from `dotnet run`, VS, and start-all.ps1. -->
+    <UseAppHost>false</UseAppHost>
   </PropertyGroup>
 
   <ItemGroup>

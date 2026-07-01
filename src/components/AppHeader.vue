@@ -1,5 +1,5 @@
 <script setup>
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter, useRoute } from 'vue-router'
 import BrandLogo from './BrandLogo.vue'
 import { openLoginDrawer } from '../services/authBridge.js'
 import { useAuth } from '../stores/auth.js'
@@ -13,9 +13,16 @@ defineProps({
   showCart: { type: Boolean, default: false },
 })
 
-// Login UI is owned by the IZZUWAN module — we only open its drawer (no redirect).
+const router = useRouter()
+const route = useRoute()
 const { state: auth, isLoggedIn, isAdmin, initials, logout } = useAuth()
 const { count } = useCart()
+
+// Sign out and return to the landing (mirrors the profile page's Log out).
+function onLogout() {
+  logout()
+  if (route.path !== '/') router.push('/')
+}
 </script>
 
 <template>
@@ -73,7 +80,7 @@ const { count } = useCart()
               <span class="profile-avatar" aria-hidden="true">{{ initials }}</span>
               <span class="profile-name">{{ auth.user.name }}</span>
             </RouterLink>
-            <button type="button" class="profile-logout" @click="logout">Logout</button>
+            <button type="button" class="profile-logout" @click="onLogout">Logout</button>
           </div>
         </template>
       </div>

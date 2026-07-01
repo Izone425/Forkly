@@ -27,6 +27,15 @@ function Free-Port($port) {
     }
 }
 
+# --- Reap orphaned Forkly backends ------------------------------------------
+# Free-Port only kills the process that currently *listens* on a port. Crashed or
+# duplicate instances that never claimed their port linger (and lock their .exe,
+# breaking the next build). Kill any Forkly apphost left running, by name.
+function Stop-StaleForkly {
+    Get-Process -Name 'Forkly.Api', 'Forkly.MenuService', 'Forkly.OrderService' -ErrorAction SilentlyContinue |
+        ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
+}
+
 # --- Install node deps only when missing ------------------------------------
 function Ensure-Deps($dir) {
     if (-not (Test-Path (Join-Path $dir 'node_modules'))) {
@@ -44,8 +53,9 @@ function Start-App($title, $dir, $cmd) {
     )
 }
 
-Write-Host "Freeing ports 5080, 5100, 5102, 5173 ..." -ForegroundColor Cyan
+Write-Host "Freeing ports 5080, 5100, 5102, 5173 and reaping stale Forkly backends ..." -ForegroundColor Cyan
 5080, 5100, 5102, 5173 | ForEach-Object { Free-Port $_ }
+Stop-StaleForkly
 
 Write-Host "Checking frontend dependencies ..." -ForegroundColor Cyan
 Ensure-Deps $root
