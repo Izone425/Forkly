@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useCart } from '../stores/cart.js'
 
 const props = defineProps({
@@ -8,13 +8,28 @@ const props = defineProps({
 
 const { add, increment, decrement, qtyOf } = useCart()
 const qty = computed(() => qtyOf(props.item.id))
+
+// Show the picture only if there is one AND it actually loads; otherwise fall
+// back to the emoji, then to the item's initial — so an item with a missing or
+// broken image never renders a blank/broken box.
+const imgFailed = ref(false)
+const showImage = computed(() => Boolean(props.item.image) && !imgFailed.value)
+const initial = computed(() => (props.item.name || '?').trim().charAt(0).toUpperCase())
 </script>
 
 <template>
   <article class="item">
     <div class="item-media" aria-hidden="true">
-      <img v-if="item.image" :src="item.image" :alt="item.name" class="item-img" loading="lazy" />
-      <span v-else class="item-emoji">{{ item.emoji }}</span>
+      <img
+        v-if="showImage"
+        :src="item.image"
+        :alt="item.name"
+        class="item-img"
+        loading="lazy"
+        @error="imgFailed = true"
+      />
+      <span v-else-if="item.emoji" class="item-emoji">{{ item.emoji }}</span>
+      <span v-else class="item-fallback">{{ initial }}</span>
     </div>
 
     <div class="item-body">
@@ -68,6 +83,7 @@ const qty = computed(() => qtyOf(props.item.id))
 }
 .item-emoji { font-size: 1.9rem; }
 .item-img { width: 100%; height: 100%; object-fit: cover; }
+.item-fallback { font-size: 1.4rem; font-weight: 800; color: var(--color-primary); }
 
 .item-body { flex: 1 1 auto; min-width: 0; }
 .item-name { margin: 0 0 2px; font-size: 1.05rem; font-weight: 700; color: var(--color-ink); }
