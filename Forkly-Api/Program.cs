@@ -26,23 +26,11 @@ var corsPolicy = "forkly-frontends";
 var allowedOrigins = new[] { "http://localhost:5174", "http://localhost:5173" };
 
 // ---- Persistence ----
-// Provider is config-switchable (Database:Provider = "Sqlite" | "Postgres").
-// Sqlite is the zero-setup default; switch to Postgres once a server is running
-// (see appsettings.json / docker-compose.yml). Migrations are provider-specific,
-// so regenerate the migration after switching — see DATABASE.md.
-var dbProvider = builder.Configuration["Database:Provider"] ?? "Sqlite";
+// PostgreSQL is the sole provider — connection string lives in appsettings.json
+// (overridden per-environment, e.g. the SIT DB in appsettings.Development.json).
+// See DATABASE.md.
 builder.Services.AddDbContext<AppDbContext>(options =>
-{
-    if (dbProvider.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
-    {
-        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
-    }
-    else
-    {
-        options.UseSqlite(
-            builder.Configuration.GetConnectionString("Sqlite") ?? "Data Source=forkly.db");
-    }
-});
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // ---- Identity ----
 builder.Services

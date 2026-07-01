@@ -1,0 +1,18 @@
+<Project>
+
+  <!-- Local-dev convenience: before a Debug build on Windows, stop any stale instance
+       of THIS project's own apphost so MSBuild can overwrite bin\...\<exe> instead of
+       failing with MSB3027 ("the file is locked by ..."). This happens when an earlier
+       run (VS or start-all.ps1) left an orphaned process behind.
+
+       It's a no-op when nothing matching is running, and when the output isn't an .exe
+       (libraries / test projects). It never runs in Release or CI — Debug + Windows only.
+       Applies to every .NET project under the repo via $(TargetName), so Forkly.Api,
+       Forkly.MenuService and Forkly.OrderService are all covered from this one file. -->
+  <Target Name="KillStaleAppHost" BeforeTargets="Build"
+          Condition="'$(Configuration)' == 'Debug' AND '$(OS)' == 'Windows_NT'">
+    <Exec Command="taskkill /F /FI &quot;IMAGENAME eq $(TargetName).exe&quot; &gt;nul 2&gt;&amp;1"
+          ContinueOnError="true" />
+  </Target>
+
+</Project>

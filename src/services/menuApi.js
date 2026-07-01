@@ -38,6 +38,14 @@ function base() {
   return config.menuApiBase.replace(/\/+$/, '')
 }
 
+// Uploaded pictures are served by the Menu service as a relative path
+// (/api/menu/{id}/image?v=…); legacy items may still carry an absolute CDN URL.
+// Resolve either to something an <img> can load.
+export function menuImageUrl(path) {
+  if (!path) return null
+  return /^https?:\/\//i.test(path) ? path : `${base()}${path}`
+}
+
 // Map one raw record from the Menu service into the stable shape the buyer UI uses:
 //   { id, name, description, price, image, emoji, category, available, stockQuantity }
 export function normalizeMenuItem(raw) {
@@ -47,7 +55,7 @@ export function normalizeMenuItem(raw) {
     name: raw.name ?? raw.itemName ?? '',
     description: raw.description ?? raw.desc ?? '',
     price: Number(raw.price ?? raw.unitPrice ?? 0),
-    image: raw.image ?? raw.imageUrl ?? raw.picture ?? raw.photo ?? null,
+    image: menuImageUrl(raw.image ?? raw.imageUrl ?? raw.picture ?? raw.photo ?? null),
     emoji: raw.emoji ?? null, // visual fallback when there is no picture
     category: raw.category ?? 'Menu',
     stockQuantity: raw.stockQuantity ?? null,
@@ -114,13 +122,30 @@ export function fetchAdminMenu() {
   return request('/api/menu/admin/all', { auth: true })
 }
 
-// payload: { categoryId, name, description, unitPrice, imageUrl, stockQuantity, availability }
+// payload: { categoryId, name, description, unitPrice, stockQuantity, availability }
+// Pictures are uploaded separately via uploadMenuImage() and stored as bytes in the DB.
 export function createMenuItem(payload) {
   return request('/api/menu', { method: 'POST', body: payload, auth: true })
 }
 
 export function updateMenuItem(id, payload) {
   return request(`/api/menu/${id}`, { method: 'PUT', body: payload, auth: true })
+}
+
+// Upload an item's picture (multipart). Mirrors authApi.uploadAvatar — the browser
+// sets the multipart boundary, so we only add the Authorization header. Returns the
+// updated item DTO.
+export async function uploadMenuImage(id, file) {
+  const form = new FormData()
+  form.append('file', file)
+
+  const res = await fetch(`${base()}/api/menu/${id}/image`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getToken()}` },
+    body: form,
+  })
+  if (!res.ok) throw new Error(await readError(res))
+  return res.json()
 }
 
 export function setMenuItemAvailability(id, availability) {

@@ -41,8 +41,8 @@ public class CreateMenuItemRequest
     [Range(0, double.MaxValue, ErrorMessage = "unitPrice must be zero or greater.")]
     public decimal UnitPrice { get; set; }
 
-    [MaxLength(2048)]
-    public string ImageUrl { get; set; } = string.Empty;
+    // Pictures are uploaded separately via POST /api/menu/{id}/image (stored as bytes),
+    // so no image field is accepted on create/update.
 
     [Range(0, int.MaxValue)]
     public int StockQuantity { get; set; }
@@ -65,8 +65,7 @@ public class UpdateMenuItemRequest
     [Range(0, double.MaxValue, ErrorMessage = "unitPrice must be zero or greater.")]
     public decimal UnitPrice { get; set; }
 
-    [MaxLength(2048)]
-    public string ImageUrl { get; set; } = string.Empty;
+    // Pictures are uploaded separately via POST /api/menu/{id}/image (stored as bytes).
 
     [Range(0, int.MaxValue)]
     public int StockQuantity { get; set; }

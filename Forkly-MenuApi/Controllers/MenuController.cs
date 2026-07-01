@@ -83,4 +83,37 @@ public class MenuController : ControllerBase
         var deleted = await _menu.DeleteAsync(id, ct);
         return deleted ? NoContent() : NotFound();
     }
+
+    // --- Menu item pictures (stored as bytes in Postgres) ---
+
+    // POST /api/menu/{id}/image — admin uploads the item's picture (multipart).
+    [HttpPost("{id:int}/image")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> UploadImage(int id, IFormFile file, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { error = "No file uploaded." });
+        if (file.Length > 10 * 1024 * 1024)
+            return BadRequest(new { error = "Image must be 10 MB or smaller." });
+
+        var allowed = new[] { "image/png", "image/jpeg", "image/webp" };
+        if (!allowed.Contains(file.ContentType))
+            return BadRequest(new { error = "Only PNG, JPEG or WebP images are allowed." });
+
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms, ct);
+
+        var updated = await _menu.SetImageAsync(id, ms.ToArray(), file.ContentType, ct);
+        return updated is null ? NotFound() : Ok(updated);
+    }
+
+    // GET /api/menu/{id}/image — anonymous so <img> tags (no auth header) can load it.
+    // The cache-busting ?v token on the URL keeps updated pictures fresh.
+    [HttpGet("{id:int}/image")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetImage(int id, CancellationToken ct)
+    {
+        var img = await _menu.GetImageAsync(id, ct);
+        return img is null ? NotFound() : File(img.Value.Data, img.Value.ContentType);
+    }
 }

@@ -17,6 +17,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<DeliveryAddress> DeliveryAddresses => Set<DeliveryAddress>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<UserAvatar> UserAvatars => Set<UserAvatar>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -61,6 +62,18 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
         builder.Entity<OrderItem>(entity =>
         {
             entity.Property(i => i.UnitPrice).HasColumnType("numeric(10,2)");
+        });
+
+        // Profile picture stored as bytes, 1:1 with the user. Cascade-deletes with
+        // the user; the UserId doubles as the primary key.
+        builder.Entity<UserAvatar>(entity =>
+        {
+            entity.HasKey(a => a.UserId);
+            entity.HasOne(a => a.User)
+                .WithOne()
+                .HasForeignKey<UserAvatar>(a => a.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.Property(a => a.ContentType).HasMaxLength(64);
         });
     }
 }

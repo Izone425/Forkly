@@ -33,7 +33,7 @@ public class MenuService : IMenuService
             Name = request.Name.Trim(),
             Description = request.Description.Trim(),
             Price = request.UnitPrice,            // unitPrice (API) -> Price (entity/db)
-            ImageUrl = request.ImageUrl.Trim(),
+            ImageUrl = string.Empty,              // pictures are uploaded separately (POST {id}/image)
             StockQuantity = request.StockQuantity,
             Availability = request.Availability,
             CreatedAt = now,
@@ -59,7 +59,7 @@ public class MenuService : IMenuService
         item.Name = request.Name.Trim();
         item.Description = request.Description.Trim();
         item.Price = request.UnitPrice;
-        item.ImageUrl = request.ImageUrl.Trim();
+        // ImageUrl is left untouched — the picture is managed via POST {id}/image.
         item.StockQuantity = request.StockQuantity;
         item.Availability = request.Availability;
         item.UpdatedAt = DateTimeOffset.UtcNow;
@@ -91,7 +91,23 @@ public class MenuService : IMenuService
         return true;
     }
 
-    // Entity -> DTO. Note Price is surfaced as UnitPrice ("unitPrice" in JSON).
+    public async Task<MenuItemResponse?> SetImageAsync(int id, byte[] data, string contentType, CancellationToken ct = default)
+    {
+        var item = await _repo.GetByIdAsync(id, ct);
+        if (item is null) return null;
+
+        await _repo.SetImageAsync(id, data, contentType, DateTimeOffset.UtcNow, ct);
+
+        var refreshed = await _repo.GetByIdAsync(id, ct);
+        return refreshed is null ? null : Map(refreshed);
+    }
+
+    public Task<(byte[] Data, string ContentType)?> GetImageAsync(int id, CancellationToken ct = default) =>
+        _repo.GetImageAsync(id, ct);
+
+    // Entity -> DTO. Note Price is surfaced as UnitPrice ("unitPrice" in JSON). When an
+    // uploaded picture exists, ImageUrl resolves to the streaming endpoint (with a
+    // cache-busting ?v token); otherwise it falls back to any legacy external URL.
     private static MenuItemResponse Map(MenuItem m) => new()
     {
         Id = m.Id,
@@ -100,7 +116,9 @@ public class MenuService : IMenuService
         Name = m.Name,
         Description = m.Description,
         UnitPrice = m.Price,
-        ImageUrl = m.ImageUrl,
+        ImageUrl = m.HasImage
+            ? $"/api/menu/{m.Id}/image?v={m.ImageUpdatedAt!.Value.Ticks}"
+            : m.ImageUrl,
         StockQuantity = m.StockQuantity,
         Availability = m.Availability,
         CreatedAt = m.CreatedAt,
