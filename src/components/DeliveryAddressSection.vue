@@ -1,46 +1,72 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import AddressFormModal from './AddressFormModal.vue'
-import { useDeliveryAddress } from '../stores/address.js'
+import { useDeliveryAddress, MAX_SAVED_ADDRESSES } from '../stores/address.js'
 import { useAuth } from '../stores/auth.js'
-import { getSavedAddresses, saveAddress } from '../services/userAddressApi.js'
+import { addAddress, absoluteUrl } from '../services/authApi.js'
 
-const { state: addr, setSaved, select, addAddress, isSelected } = useDeliveryAddress()
-const { state: auth } = useAuth()
+const { state: addr, all, savedCount, canSaveMore, setPersisted, select, isSelected, addTemporary } =
+  useDeliveryAddress()
+const { state: auth, setUser } = useAuth()
 
 const showModal = ref(false)
+const saving = ref(false)
+const error = ref('')
 
-onMounted(async () => {
-  if (addr.loaded) return
+// Always reflect the signed-in user's REAL saved addresses (from the User
+// service via auth.user). No mock fallback: an empty profile shows an empty list
+// and the user must add an address before they can check out.
+function syncFromProfile() {
+  setPersisted(auth.user?.addresses || [])
+}
+onMounted(syncFromProfile)
+watch(() => auth.user?.addresses, syncFromProfile, { deep: true })
 
-  // Prefer the signed-in user's REAL saved addresses, which the IZZUWAN auth
-  // module already delivered with the login-success profile (stored on auth.user).
-  const fromProfile = auth.user?.addresses
-  if (Array.isArray(fromProfile) && fromProfile.length) {
-    setSaved(fromProfile)
+async function onSubmit({ address, saveToProfile }) {
+  error.value = ''
+
+  // The 3-address cap applies to SAVED addresses only; order-only is always fine.
+  if (saveToProfile && !canSaveMore.value) {
+    error.value = `You can save up to ${MAX_SAVED_ADDRESSES} addresses. Remove one in your profile, or uncheck “save” to use this address for this order only.`
     return
   }
 
-  // Fallback (e.g. user has no saved addresses yet): the User Service mock.
-  // TODO: real fetch — REST GET /users/{userId}/addresses
-  const list = await getSavedAddresses(auth.user?.id)
-  setSaved(list)
-})
-
-async function onSubmit({ address, saveToProfile }) {
-  if (saveToProfile) {
-    // TODO: Save address to User Service
-    // REST: POST /users/{userId}/addresses
-    // gRPC: UserService.SaveAddress(address)
-    const saved = await saveAddress(auth.user?.id, address)
-    addAddress(saved, { persisted: true })
-  } else {
-    // Temporary address — used for this order only, not saved to the profile.
-    addAddress({ ...address, id: 'addr-temp-' + Math.random().toString(36).slice(2, 8) }, {
-      persisted: false,
-    })
+  // Order-only address — kept in the cart for this order, not persisted.
+  if (!saveToProfile) {
+    addTemporary(address)
+    showModal.value = false
+    return
   }
-  showModal.value = false
+
+  // Persist to the User service (Izzuwan). It owns the address book — we never
+  // store addresses on our side. It returns the full updated user.
+  saving.value = true
+  try {
+    const beforeIds = new Set((auth.user?.addresses || []).map((a) => a.id))
+    const payload = {
+      label: address.label,
+      addressLine1: address.addressLine1,
+      addressLine2: address.addressLine2,
+      city: address.city,
+      state: address.state,
+      postcode: address.postcode,
+      deliveryNotes: address.notes,
+      isDefault: savedCount.value === 0, // first saved address becomes the default
+    }
+    const updated = await addAddress(payload)
+
+    // Keep the auth store (profile + header) in sync, then select the new address.
+    setUser({ ...updated, name: updated.fullName || updated.email, avatarUrl: absoluteUrl(updated.avatarUrl) })
+    setPersisted(updated.addresses)
+    const added = (updated.addresses || []).find((a) => !beforeIds.has(a.id))
+    if (added) select(addr.persisted.find((a) => a.id === added.id) || added)
+
+    showModal.value = false
+  } catch (e) {
+    error.value = e?.message || 'Could not save the address. Please try again.'
+  } finally {
+    saving.value = false
+  }
 }
 </script>
 
@@ -48,9 +74,13 @@ async function onSubmit({ address, saveToProfile }) {
   <section class="delivery">
     <h3 class="delivery-title">Delivery Address</h3>
 
-    <div class="addr-list">
+    <p v-if="!all.length" class="addr-empty">
+      You have no saved delivery address yet. Add one below to place your order.
+    </p>
+
+    <div v-else class="addr-list">
       <label
-        v-for="a in addr.saved"
+        v-for="a in all"
         :key="a.id"
         class="addr-option"
         :class="{ selected: isSelected(a) }"
@@ -64,7 +94,7 @@ async function onSubmit({ address, saveToProfile }) {
         />
         <span class="addr-body">
           <span class="addr-label">
-            {{ a.label }}
+            {{ a.label || 'Address' }}
             <span v-if="a.isDefault" class="addr-tag">Default</span>
             <span v-else-if="a.temporary" class="addr-tag temp">This order</span>
           </span>
@@ -76,11 +106,23 @@ async function onSubmit({ address, saveToProfile }) {
       </label>
     </div>
 
+    <p v-if="error" class="addr-error" role="alert">{{ error }}</p>
+
     <button type="button" class="add-addr" @click="showModal = true">
       <span aria-hidden="true">+</span> Add New Address
     </button>
 
-    <AddressFormModal :open="showModal" @close="showModal = false" @submit="onSubmit" />
+    <p v-if="!canSaveMore" class="addr-limit">
+      You've saved the maximum of {{ MAX_SAVED_ADDRESSES }} addresses. A new one can still be used for this order only.
+    </p>
+
+    <AddressFormModal
+      :open="showModal"
+      :can-save="canSaveMore"
+      :saving="saving"
+      @close="showModal = false"
+      @submit="onSubmit"
+    />
   </section>
 </template>
 
@@ -97,6 +139,16 @@ async function onSubmit({ address, saveToProfile }) {
   letter-spacing: 0.8px;
   text-transform: uppercase;
   color: var(--color-muted);
+}
+
+.addr-empty {
+  margin: 0 0 6px;
+  padding: 12px 14px;
+  font-size: 0.88rem;
+  color: var(--color-body);
+  background: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
 }
 
 .addr-list { display: grid; gap: 10px; }
@@ -138,6 +190,8 @@ async function onSubmit({ address, saveToProfile }) {
 .addr-tag.temp { color: #b45309; border-color: #fcd34d; background: #fffbeb; }
 .addr-lines { font-size: 0.85rem; color: var(--color-body); line-height: 1.45; }
 
+.addr-error { margin: 10px 0 0; color: #d33; font-size: 0.85rem; }
+
 .add-addr {
   margin-top: 12px;
   width: 100%;
@@ -153,4 +207,6 @@ async function onSubmit({ address, saveToProfile }) {
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 .add-addr:hover { border-color: var(--color-primary); background: var(--color-primary-soft); }
+
+.addr-limit { margin: 8px 0 0; font-size: 0.78rem; color: var(--color-muted); text-align: center; }
 </style>

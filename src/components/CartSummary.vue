@@ -155,16 +155,20 @@ async function placeOrder() {
         <button
           type="button"
           class="btn btn-primary btn-block place-btn"
-          :disabled="placing"
+          :disabled="placing || (isLoggedIn && !address.selected)"
           @click="checkout"
         >
           <template v-if="placing">Placing…</template>
           <template v-else-if="!isLoggedIn">Sign in to Checkout · {{ money(cart.total.value) }}</template>
+          <template v-else-if="!address.selected">Add a delivery address</template>
           <template v-else>Place Order · {{ money(cart.total.value) }}</template>
         </button>
 
         <p v-if="!isLoggedIn" class="cart-hint">
           You're browsing as a guest — sign in at checkout to place your order.
+        </p>
+        <p v-else-if="!address.selected" class="cart-hint">
+          Add a delivery address above to place your order.
         </p>
         <p v-else-if="!isOrderApiConfigured()" class="cart-hint">
           Orders run in demo mode until the order service is connected.
