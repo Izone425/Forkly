@@ -7,4 +7,9 @@ public sealed class MockMenuCatalog : IMenuCatalog
 {
     public Task<MenuItemInfo?> GetItemAsync(int menuId, CancellationToken ct = default)
         => Task.FromResult<MenuItemInfo?>(new MenuItemInfo(menuId, $"Item {menuId}", 0m, true));
+
+    // No stock tracking in the offline mock — always "commits".
+    public Task<StockCommit> CommitAsync(
+        string sessionId, IReadOnlyList<(int MenuId, int Quantity)> items, CancellationToken ct = default)
+        => Task.FromResult(new StockCommit(true, 0, 0));
 }

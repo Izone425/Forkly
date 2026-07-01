@@ -11,6 +11,7 @@
 
 import { reactive, computed, watch } from 'vue'
 import { mergeCartWithReorderItems } from '../utils/cartMerge.js'
+import { reserveItem, releaseItem, isMenuApiConfigured, StockError } from '../services/menuApi.js'
 
 const SST_RATE = 0.06 // 6% SST (Malaysia) — display only.
 const STORAGE_KEY = 'forkly:cart'
@@ -48,24 +49,41 @@ function persist() {
 restore()
 watch(() => state.lines, persist, { deep: true })
 
+// Keep the live "N left" figure on a menu item in sync after a reserve/release. The
+// item object is shared with the menu store, so the card's availability updates too.
+function setAvailable(item, remaining) {
+  if (item && typeof item === 'object' && remaining != null) item.availableStock = remaining
+}
+
 export function useCart() {
-  function add(item) {
+  // Increasing a line HOLDS stock server-side first; if the hold is refused the local
+  // cart is left unchanged and the error (StockError) propagates so the UI can react.
+  async function add(item) {
+    const next = (state.lines[item.id]?.qty ?? 0) + 1
+    if (isMenuApiConfigured()) setAvailable(item, await reserveItem(item.id, next))
+
     const line = state.lines[item.id]
-    if (line) line.qty += 1
-    else state.lines[item.id] = { item, qty: 1 }
+    if (line) line.qty = next
+    else state.lines[item.id] = { item, qty: next }
   }
 
-  function increment(id) {
+  async function increment(id) {
     const line = state.lines[id]
-    if (line) line.qty += 1
+    if (!line) return
+    const next = line.qty + 1
+    if (isMenuApiConfigured()) setAvailable(line.item, await reserveItem(id, next))
+    line.qty = next
   }
 
   // Add an item with a specific quantity (merges into an existing line).
-  function addQuantity(item, qty) {
+  async function addQuantity(item, qty) {
     const n = Math.max(1, Math.floor(qty || 1))
+    const next = (state.lines[item.id]?.qty ?? 0) + n
+    if (isMenuApiConfigured()) setAvailable(item, await reserveItem(item.id, next))
+
     const line = state.lines[item.id]
-    if (line) line.qty += n
-    else state.lines[item.id] = { item, qty: n }
+    if (line) line.qty = next
+    else state.lines[item.id] = { item, qty: next }
   }
 
   // Reorder: MERGE reorder items into the current cart (never replace).
@@ -75,7 +93,7 @@ export function useCart() {
   // prices stay correct.
   //
   // reorderItems: [{ menuId, name, quantity, price }]
-  function mergeReorder(reorderItems, resolveItem) {
+  async function mergeReorder(reorderItems, resolveItem) {
     const current = Object.values(state.lines).map((l) => ({
       menuId: l.item.id,
       name: l.item.name,
@@ -86,33 +104,72 @@ export function useCart() {
     const merged = mergeCartWithReorderItems(current, reorderItems)
 
     for (const m of merged) {
+      // Reserve the merged quantity; if stock is short, clamp to whatever's available.
+      let granted = m.quantity
+      if (isMenuApiConfigured()) {
+        try {
+          await reserveItem(m.menuId, m.quantity)
+        } catch (e) {
+          if (e instanceof StockError) {
+            granted = Math.max(0, e.remaining)
+            if (granted > 0) {
+              try { await reserveItem(m.menuId, granted) } catch { granted = 0 }
+            }
+          }
+          // Non-stock (network) errors fall through and apply the merge locally.
+        }
+      }
+
       const existing = state.lines[m.menuId]
+      if (granted <= 0) {
+        if (existing) delete state.lines[m.menuId]
+        continue
+      }
       if (existing) {
-        existing.qty = m.quantity
+        existing.qty = granted
       } else {
         const item = (resolveItem && resolveItem(m.menuId)) || {
           id: m.menuId,
           name: m.name,
           price: m.price,
         }
-        state.lines[m.menuId] = { item, qty: m.quantity }
+        state.lines[m.menuId] = { item, qty: granted }
       }
     }
   }
 
-  function decrement(id) {
+  // Reducing/removing applies locally first (snappy) and releases the hold in the
+  // background; a release failure is harmless because holds also expire via TTL.
+  async function decrement(id) {
     const line = state.lines[id]
     if (!line) return
-    line.qty -= 1
-    if (line.qty <= 0) delete state.lines[id]
+    const next = line.qty - 1
+
+    if (next <= 0) {
+      if (line.item) setAvailable(line.item, (line.item.availableStock ?? 0) + line.qty)
+      delete state.lines[id]
+      if (isMenuApiConfigured()) { try { await releaseItem(id) } catch { /* TTL cleans up */ } }
+      return
+    }
+
+    if (line.item) setAvailable(line.item, (line.item.availableStock ?? 0) + 1)
+    line.qty = next
+    if (isMenuApiConfigured()) { try { await reserveItem(id, next) } catch { /* poll corrects */ } }
   }
 
-  function remove(id) {
+  async function remove(id) {
+    const line = state.lines[id]
+    if (line?.item) setAvailable(line.item, (line.item.availableStock ?? 0) + (line.qty ?? 0))
     delete state.lines[id]
+    if (isMenuApiConfigured()) { try { await releaseItem(id) } catch { /* TTL cleans up */ } }
   }
 
-  function clear() {
+  async function clear() {
+    const held = Object.values(state.lines)
     state.lines = {}
+    if (isMenuApiConfigured()) {
+      await Promise.allSettled(held.map((l) => releaseItem(l.item.id)))
+    }
   }
 
   function qtyOf(id) {
