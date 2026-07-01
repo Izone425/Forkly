@@ -1,30 +1,23 @@
 <script setup>
-import { computed } from 'vue'
-import AppHeader from '../components/AppHeader.vue'
-import FloatingCart from '../components/FloatingCart.vue'
-import { config } from '../config.js'
-
-// Full-page "My Account": embeds Forkly-Auth's /profile page (the account UI owned by
-// the user-management module). No ?embed=1 so it renders the full layout — but since
-// it runs inside an iframe, Forkly-Auth still posts profile-updated / logout to us.
-//
-// Those postMessages (logout → return to landing, profile-updated → refresh header)
-// are handled app-wide in services/authBridge.js, so this view just renders the frame.
-
-const src = computed(() => {
-  if (!config.loginUrl) return 'about:blank'
-  const url = new URL(config.loginUrl)
-  url.pathname = '/profile'
-  url.searchParams.set('from', 'forkly-landing')
-  url.searchParams.set('return_to', window.location.origin)
-  return url.toString()
-})
 // Full-page "My Account" (/account). The profile UI now lives in-app (ProfileView,
 // migrated from the former Forkly-Auth app) — no iframe. We just frame it with the
 // landing header and the floating "go to your order" cart.
+import { watch } from 'vue'
+import { useRouter } from 'vue-router'
 import AppHeader from '../components/AppHeader.vue'
 import FloatingCart from '../components/FloatingCart.vue'
 import ProfileView from './ProfileView.vue'
+import { useAuth } from '../stores/auth.js'
+
+const router = useRouter()
+const { isLoggedIn } = useAuth()
+
+// You can't be on "My Account" while logged out — leave for the landing whenever
+// auth clears, no matter which control did it (header Logout, profile card, token
+// expiry). This keeps the page from "remaining" after sign-out.
+watch(isLoggedIn, (loggedIn) => {
+  if (!loggedIn) router.push('/')
+})
 </script>
 
 <template>
