@@ -2,8 +2,9 @@
 // User management: search, page, promote/demote admin, enable/disable accounts.
 // All mutations return the updated row so we patch it in place without a refetch.
 // Server enforces the guards (last-admin, self-action) and surfaces them as errors.
-import { ref, onMounted } from 'vue'
-import { listUsers, setUserAdmin, setUserDisabled } from '../services/adminApi.js'
+import { ref, computed, onMounted } from 'vue'
+import { listUsers, setUserAdmin, setUserDisabled, getUser } from '../services/adminApi.js'
+import { absoluteUrl } from '../services/authApi.js'
 import { useToast } from '../stores/toast.js'
 
 const { show } = useToast()
@@ -16,6 +17,42 @@ const search = ref('')
 const loading = ref(false)
 const error = ref('')
 const busyId = ref(null) // row currently mutating
+
+// User-detail modal (read-only view of one user's account).
+const detailOpen = ref(false)
+const detail = ref(null)
+const detailLoading = ref(false)
+const detailError = ref('')
+
+const avatarSrc = computed(() => absoluteUrl(detail.value?.user.avatarUrl))
+
+function initial(person) {
+  return (person?.fullName || person?.email || '?').trim().charAt(0).toUpperCase()
+}
+
+function formatDate(iso) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString()
+}
+
+async function openDetail(user) {
+  detailOpen.value = true
+  detail.value = null
+  detailError.value = ''
+  detailLoading.value = true
+  try {
+    detail.value = await getUser(user.id)
+  } catch (err) {
+    detailError.value = err.message
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+function closeDetail() {
+  detailOpen.value = false
+}
 
 async function load() {
   loading.value = true
@@ -118,7 +155,11 @@ onMounted(load)
             <td colspan="5" class="users-empty">No users found.</td>
           </tr>
           <tr v-for="user in users" v-else :key="user.id">
-            <td class="cell-name">{{ user.fullName }}</td>
+            <td class="cell-name">
+              <button type="button" class="link-name" @click="openDetail(user)" :title="`View ${user.fullName}`">
+                {{ user.fullName }}
+              </button>
+            </td>
             <td class="cell-muted">{{ user.email }}</td>
             <td>
               <span class="badge" :class="user.isAdmin ? 'badge-admin' : 'badge-client'">
@@ -166,6 +207,69 @@ onMounted(load)
         </button>
       </div>
     </footer>
+
+    <!-- Read-only user detail -->
+    <div v-if="detailOpen" class="modal-root" @click.self="closeDetail">
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-label="User details">
+        <header class="modal-head">
+          <h2 class="modal-title">User details</h2>
+          <button type="button" class="modal-close" @click="closeDetail">×</button>
+        </header>
+
+        <div class="detail-body">
+          <p v-if="detailLoading" class="detail-status">Loading…</p>
+          <p v-else-if="detailError" class="notice notice-error">{{ detailError }}</p>
+
+          <template v-else-if="detail">
+            <div class="detail-summary">
+              <img v-if="avatarSrc" :src="avatarSrc" :alt="detail.user.fullName" class="detail-avatar" />
+              <span v-else class="detail-avatar detail-avatar-fallback" aria-hidden="true">{{ initial(detail.user) }}</span>
+              <div class="detail-id">
+                <p class="detail-name">{{ detail.user.fullName }}</p>
+                <p class="detail-email">{{ detail.user.email }}</p>
+                <div class="detail-badges">
+                  <span class="badge" :class="detail.isAdmin ? 'badge-admin' : 'badge-client'">
+                    {{ detail.isAdmin ? 'Admin' : 'Client' }}
+                  </span>
+                  <span class="badge" :class="detail.isDisabled ? 'badge-off' : 'badge-on'">
+                    {{ detail.isDisabled ? 'Disabled' : 'Active' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <dl class="detail-meta">
+              <div class="detail-row">
+                <dt>Phone</dt>
+                <dd>{{ detail.user.phone || '—' }}</dd>
+              </div>
+              <div class="detail-row">
+                <dt>Member since</dt>
+                <dd>{{ formatDate(detail.createdAt) }}</dd>
+              </div>
+            </dl>
+
+            <h3 class="detail-subhead">Delivery addresses</h3>
+            <p v-if="!detail.user.addresses.length" class="detail-status">No addresses saved.</p>
+            <ul v-else class="addr-list">
+              <li v-for="a in detail.user.addresses" :key="a.id" class="addr-card" :class="{ 'is-default': a.isDefault }">
+                <div class="addr-body">
+                  <p class="addr-label">
+                    <span v-if="a.label">{{ a.label }}</span>
+                    <span v-if="a.isDefault" class="addr-default-tag">Default</span>
+                  </p>
+                  <p class="addr-line">
+                    {{ a.addressLine1 }}<template v-if="a.addressLine2">, {{ a.addressLine2 }}</template>
+                  </p>
+                  <p class="addr-line muted">{{ [a.city, a.state, a.postcode].filter(Boolean).join(', ') }}</p>
+                  <p v-if="a.deliveryNotes" class="addr-line muted">📝 {{ a.deliveryNotes }}</p>
+                </div>
+              </li>
+            </ul>
+          </template>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
 
@@ -264,4 +368,117 @@ onMounted(load)
 
 .notice { padding: 10px 14px; border-radius: var(--radius-sm); font-size: 0.88rem; margin: 0 0 16px; }
 .notice-error { background: #fef2f2; color: var(--color-danger); border: 1px solid #fecaca; }
+
+/* Clickable username (button styled as a link). */
+.link-name {
+  font: inherit;
+  font-weight: 700;
+  color: var(--color-ink);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.link-name:hover { color: var(--color-primary); text-decoration: underline; }
+.link-name:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; border-radius: 2px; }
+
+/* User-detail modal (mirrors AdminMenu.vue). */
+.modal-root {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  z-index: 50;
+}
+.modal-panel {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+.modal-title { margin: 0; font-size: 1.15rem; color: var(--color-ink); }
+.modal-close {
+  border: none;
+  background: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.detail-body { padding: 18px 20px 22px; }
+.detail-status { color: var(--color-muted); font-size: 0.9rem; margin: 4px 0; }
+
+.detail-summary { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.detail-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.detail-avatar-fallback {
+  display: grid;
+  place-items: center;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+.detail-id { min-width: 0; }
+.detail-name { margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--color-ink); }
+.detail-email { margin: 2px 0 8px; color: var(--color-muted); font-size: 0.9rem; word-break: break-all; }
+.detail-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.detail-meta {
+  margin: 0 0 20px;
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 16px;
+}
+.detail-row { display: flex; justify-content: space-between; gap: 16px; font-size: 0.92rem; }
+.detail-row dt { color: var(--color-muted); margin: 0; }
+.detail-row dd { margin: 0; color: var(--color-body); font-weight: 600; text-align: right; }
+
+.detail-subhead {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-muted);
+}
+.addr-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.addr-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+.addr-card.is-default { border-color: var(--color-primary); background: var(--color-primary-soft); }
+.addr-body { min-width: 0; }
+.addr-label { margin: 0 0 4px; font-weight: 700; color: var(--color-ink); display: flex; align-items: center; gap: 8px; }
+.addr-default-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: #fff;
+  border: 1px solid var(--color-primary);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.addr-line { margin: 2px 0; font-size: 0.9rem; color: var(--color-body); }
+.addr-line.muted { color: var(--color-muted); }
 </style>

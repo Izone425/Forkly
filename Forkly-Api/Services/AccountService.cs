@@ -195,15 +195,40 @@ public class AccountService : IAccountService
         return await BuildDtoAsync(user);
     }
 
-    public async Task<UserDto?> SetAvatarAsync(string userId, string avatarUrl)
+    public async Task<UserDto?> SetAvatarAsync(string userId, byte[] data, string contentType)
     {
         var user = await _userManager.FindByIdAsync(userId);
         if (user is null) return null;
 
-        user.AvatarUrl = avatarUrl;
+        // Upsert the 1:1 avatar row (bytes live in Postgres, not on disk).
+        var avatar = await _db.UserAvatars.FirstOrDefaultAsync(a => a.UserId == user.Id);
+        if (avatar is null)
+        {
+            avatar = new UserAvatar { UserId = user.Id };
+            _db.UserAvatars.Add(avatar);
+        }
+        avatar.Data = data;
+        avatar.ContentType = contentType;
+        avatar.UpdatedAt = DateTimeOffset.UtcNow;
+
+        // Retire any stale on-disk path so the DTO serves the new DB-backed image.
+        user.AvatarUrl = null;
+
+        await _db.SaveChangesAsync();
         await _userManager.UpdateAsync(user);
 
         return await BuildDtoAsync(user);
+    }
+
+    public async Task<(byte[] Data, string ContentType)?> GetAvatarAsync(int userId)
+    {
+        var avatar = await _db.UserAvatars
+            .Where(a => a.UserId == userId)
+            .Select(a => new { a.Data, a.ContentType })
+            .FirstOrDefaultAsync();
+
+        if (avatar is null || avatar.Data.Length == 0) return null;
+        return (avatar.Data, string.IsNullOrEmpty(avatar.ContentType) ? "image/jpeg" : avatar.ContentType);
     }
 
     public async Task<AccountResult> ChangePasswordAsync(string userId, string currentPassword, string newPassword)
@@ -378,6 +403,14 @@ public class AccountService : IAccountService
             .ThenByDescending(a => a.CreatedAt)
             .ToListAsync();
 
+        // Prefer the DB-backed avatar (served from a streaming endpoint with a
+        // cache-busting ?v token); fall back to any legacy on-disk path. We only
+        // read the timestamp here — never the image bytes.
+        var avatarUpdatedAt = await _db.UserAvatars
+            .Where(a => a.UserId == user.Id)
+            .Select(a => (DateTimeOffset?)a.UpdatedAt)
+            .FirstOrDefaultAsync();
+
         var dto = new UserDto
         {
             Id = user.Id.ToString(),
@@ -385,7 +418,9 @@ public class AccountService : IAccountService
             FullName = user.FullName,
             Roles = roles,
             Phone = user.PhoneNumber,
-            AvatarUrl = user.AvatarUrl,
+            AvatarUrl = avatarUpdatedAt is not null
+                ? $"/api/auth/users/{user.Id}/avatar?v={avatarUpdatedAt.Value.Ticks}"
+                : user.AvatarUrl,
             Addresses = addresses.Select(ToAddressDto).ToList(),
         };
 

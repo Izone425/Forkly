@@ -1,26 +1,8 @@
 # Database setup
 
-The API uses **PostgreSQL** via EF Core (Npgsql). The provider is config-switchable
-so you can fall back to SQLite for a zero-setup run.
-
-## Provider switch
-
-`appsettings.json` → `Database:Provider` selects the EF Core provider:
-
-```json
-"Database": { "Provider": "Postgres" }   // or "Sqlite"
-```
-
-- **Postgres** uses `ConnectionStrings:DefaultConnection`.
-- **Sqlite** uses `ConnectionStrings:Sqlite` (`Data Source=forkly.db`).
-
-> Migrations are provider-specific. After switching the provider, regenerate the
-> migration:
-> ```
-> Remove-Item Migrations -Recurse -Force
-> dotnet ef migrations add InitialCreate
-> dotnet ef database update
-> ```
+The API uses **PostgreSQL** via EF Core (Npgsql). The connection string lives in
+`ConnectionStrings:DefaultConnection` (`appsettings.json`), overridden per
+environment — e.g. the shared SIT database in `appsettings.Development.json`.
 
 ## Running PostgreSQL locally (no admin, no service)
 

@@ -13,6 +13,8 @@ import {
   updateMenuItem,
   deleteMenuItem,
   setMenuItemAvailability,
+  uploadMenuImage,
+  menuImageUrl,
 } from '../services/menuApi.js'
 import { MENU as SAMPLE_MENU } from '../data/menu.js'
 import { useToast } from '../stores/toast.js'
@@ -35,16 +37,43 @@ const formError = ref('')
 const editingId = ref(null)
 const form = ref(blankForm())
 
+// Picture upload state (stored as bytes in the DB, uploaded after the item is saved).
+const imageFile = ref(null)       // the newly-selected File, if any
+const imagePreview = ref('')      // object URL for the selected File
+const existingImageUrl = ref('')  // absolutized current image, when editing
+
 function blankForm() {
   return {
     categoryId: '',
     name: '',
     description: '',
     unitPrice: '',
-    imageUrl: '',
     stockQuantity: 0,
     availability: true,
   }
+}
+
+// Preview the selected file if there is one, otherwise the item's current picture.
+const previewSrc = computed(() => imagePreview.value || existingImageUrl.value)
+
+function resetImageInput() {
+  if (imagePreview.value) URL.revokeObjectURL(imagePreview.value)
+  imageFile.value = null
+  imagePreview.value = ''
+}
+
+function onImageChange(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  if (file.size > 10 * 1024 * 1024) {
+    formError.value = 'Image must be 10 MB or smaller.'
+    event.target.value = ''
+    return
+  }
+  if (imagePreview.value) URL.revokeObjectURL(imagePreview.value)
+  imageFile.value = file
+  imagePreview.value = URL.createObjectURL(file)
+  formError.value = ''
 }
 
 const modalTitle = computed(() => (editingId.value ? 'Edit menu item' : 'Add menu item'))
@@ -89,6 +118,8 @@ function openCreate() {
   editingId.value = null
   form.value = blankForm()
   if (categories.value.length) form.value.categoryId = categories.value[0].id
+  resetImageInput()
+  existingImageUrl.value = ''
   formError.value = ''
   modalOpen.value = true
 }
@@ -100,16 +131,18 @@ function openEdit(item) {
     name: item.name,
     description: item.description ?? '',
     unitPrice: item.unitPrice,
-    imageUrl: item.imageUrl ?? '',
     stockQuantity: item.stockQuantity ?? 0,
     availability: item.availability,
   }
+  resetImageInput()
+  existingImageUrl.value = menuImageUrl(item.imageUrl) ?? ''
   formError.value = ''
   modalOpen.value = true
 }
 
 function closeModal() {
   if (saving.value) return
+  resetImageInput()
   modalOpen.value = false
 }
 
@@ -133,22 +166,30 @@ async function save() {
     name: form.value.name.trim(),
     description: form.value.description.trim(),
     unitPrice: Number(form.value.unitPrice) || 0,
-    imageUrl: form.value.imageUrl.trim(),
     stockQuantity: Number(form.value.stockQuantity) || 0,
     availability: Boolean(form.value.availability),
   }
 
   saving.value = true
   try {
-    if (editingId.value) {
-      const updated = await updateMenuItem(editingId.value, payload)
-      patchRow(updated)
-      show(`Updated “${updated.name}”.`)
-    } else {
-      const created = await createMenuItem(payload)
-      items.value.unshift(created)
-      show(`Added “${created.name}”.`)
+    const editing = editingId.value
+    // Save the item first, then (if a picture was chosen) upload it to the DB. The
+    // upload returns the fully-updated DTO, so we use whichever result is latest.
+    let saved = editing
+      ? await updateMenuItem(editing, payload)
+      : await createMenuItem(payload)
+    if (imageFile.value) {
+      saved = await uploadMenuImage(saved.id, imageFile.value)
     }
+
+    if (editing) {
+      patchRow(saved)
+      show(`Updated “${saved.name}”.`)
+    } else {
+      items.value.unshift(saved)
+      show(`Added “${saved.name}”.`)
+    }
+    resetImageInput()
     modalOpen.value = false
   } catch (err) {
     formError.value = err.message
@@ -231,7 +272,7 @@ onMounted(load)
           </tr>
           <tr v-for="item in items" v-else :key="item.id">
             <td class="col-img">
-              <img v-if="item.imageUrl" :src="item.imageUrl" :alt="item.name" class="menu-thumb" />
+              <img v-if="item.imageUrl" :src="menuImageUrl(item.imageUrl)" :alt="item.name" class="menu-thumb" />
               <span v-else class="menu-thumb menu-thumb-empty" aria-hidden="true">🍽</span>
             </td>
             <td>
@@ -310,12 +351,18 @@ onMounted(load)
           </div>
 
           <label class="field">
-            <span class="field-label">Image URL (HD)</span>
-            <input v-model="form.imageUrl" type="url" class="field-input" placeholder="https://…" maxlength="2048" />
+            <span class="field-label">Picture</span>
+            <input
+              type="file"
+              class="field-input"
+              accept="image/png,image/jpeg,image/webp"
+              @change="onImageChange"
+            />
+            <span class="field-hint">PNG, JPEG or WebP, up to 10 MB. Stored in the database.</span>
           </label>
 
-          <div v-if="form.imageUrl" class="img-preview">
-            <img :src="form.imageUrl" alt="Preview" />
+          <div v-if="previewSrc" class="img-preview">
+            <img :src="previewSrc" alt="Preview" />
           </div>
 
           <label class="field-check">
@@ -474,6 +521,7 @@ onMounted(load)
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .field-label { font-size: 0.82rem; font-weight: 700; color: var(--color-body); }
+.field-hint { font-size: 0.78rem; color: var(--color-muted); }
 .field-input {
   font-family: inherit;
   font-size: 0.95rem;

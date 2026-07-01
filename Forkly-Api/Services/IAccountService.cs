@@ -26,8 +26,11 @@ public interface IAccountService
     Task<UserDto?> DeleteAddressAsync(string userId, int addressId);
     Task<UserDto?> SetDefaultAddressAsync(string userId, int addressId);
 
-    // Set the avatar URL (relative path) after a file upload.
-    Task<UserDto?> SetAvatarAsync(string userId, string avatarUrl);
+    // Store an uploaded avatar's bytes in the DB. Returns the updated UserDto.
+    Task<UserDto?> SetAvatarAsync(string userId, byte[] data, string contentType);
+
+    // Read a user's stored avatar bytes + content type, or null if none.
+    Task<(byte[] Data, string ContentType)?> GetAvatarAsync(int userId);
 
     // Change the password (requires the correct current password).
     Task<AccountResult> ChangePasswordAsync(string userId, string currentPassword, string newPassword);

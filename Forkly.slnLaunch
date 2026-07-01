@@ -7,6 +7,14 @@
         "Action": "Start"
       },
       {
+        "Path": "Forkly-MenuApi\\Forkly.MenuService.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "backend\\Forkly.OrderService\\Forkly.OrderService.csproj",
+        "Action": "Start"
+      },
+      {
         "Path": "Forkly-Landing.esproj",
         "Action": "Start"
       }

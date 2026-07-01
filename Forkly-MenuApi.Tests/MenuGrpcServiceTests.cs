@@ -20,6 +20,8 @@ public class MenuGrpcServiceTests
         public Task<MenuItemResponse?> UpdateAsync(int id, UpdateMenuItemRequest r, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<MenuItemResponse?> SetAvailabilityAsync(int id, bool a, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<bool> DeleteAsync(int id, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<MenuItemResponse?> SetImageAsync(int id, byte[] data, string contentType, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<(byte[] Data, string ContentType)?> GetImageAsync(int id, CancellationToken ct = default) => throw new NotImplementedException();
     }
 
     [Fact]

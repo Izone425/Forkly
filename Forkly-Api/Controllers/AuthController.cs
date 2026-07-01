@@ -133,22 +133,25 @@ public class AuthController : ControllerBase
             ["image/jpeg"] = ".jpg",
             ["image/webp"] = ".webp",
         };
-        if (!allowed.TryGetValue(file.ContentType, out var ext))
+        if (!allowed.ContainsKey(file.ContentType))
             return BadRequest(new { errors = new[] { "Only PNG, JPEG or WebP images are allowed." } });
 
-        var uploads = Path.Combine(_env.WebRootPath ?? "wwwroot", "uploads");
-        Directory.CreateDirectory(uploads);
+        // Store the bytes in Postgres (bytea) rather than on disk.
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms);
 
-        // One file per user; overwrite previous avatars regardless of extension.
-        foreach (var existing in Directory.GetFiles(uploads, userId + ".*"))
-            System.IO.File.Delete(existing);
-
-        var fileName = userId + ext;
-        await using (var stream = System.IO.File.Create(Path.Combine(uploads, fileName)))
-            await file.CopyToAsync(stream);
-
-        var user = await _accounts.SetAvatarAsync(userId, $"/uploads/{fileName}");
+        var user = await _accounts.SetAvatarAsync(userId, ms.ToArray(), file.ContentType);
         return user is null ? Unauthorized() : Ok(user);
+    }
+
+    // Anonymous so <img> tags (which can't send an Authorization header) can load
+    // it. The cache-busting ?v token on the URL keeps updated avatars fresh.
+    [AllowAnonymous]
+    [HttpGet("users/{id:int}/avatar")]
+    public async Task<IActionResult> GetAvatar(int id)
+    {
+        var img = await _accounts.GetAvatarAsync(id);
+        return img is null ? NotFound() : File(img.Value.Data, img.Value.ContentType);
     }
 
     private string? CurrentUserId() =>
