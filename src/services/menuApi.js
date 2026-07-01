@@ -29,6 +29,10 @@
 
 import { config } from '../config.js'
 import { getToken } from './authApi.js'
+import { getSessionId } from './session.js'
+
+// Header the Menu service reads to attribute cart stock reservations to a browser.
+const SESSION_HEADER = 'X-Forkly-Session'
 
 export function isMenuApiConfigured() {
   return Boolean(config.menuApiBase)
@@ -59,6 +63,9 @@ export function normalizeMenuItem(raw) {
     emoji: raw.emoji ?? null, // visual fallback when there is no picture
     category: raw.category ?? 'Menu',
     stockQuantity: raw.stockQuantity ?? null,
+    // How many more units may still be added (stock minus everyone's active cart holds).
+    // Falls back to stockQuantity for older payloads that don't send it.
+    availableStock: raw.availableStock ?? raw.stockQuantity ?? null,
     // The service field is "availability"; tolerate the older "available" too.
     available: (raw.availability ?? raw.available) !== false,
   }
@@ -67,7 +74,10 @@ export function normalizeMenuItem(raw) {
 // Fetch the live buyer menu and return UI-ready items. Throws on network/HTTP error
 // so the caller (menu store) can fall back to the bundled menu.
 export async function fetchMenu(signal) {
-  const res = await fetch(`${base()}/api/menu`, { signal })
+  const res = await fetch(`${base()}/api/menu`, {
+    signal,
+    headers: { [SESSION_HEADER]: getSessionId() },
+  })
   if (!res.ok) throw new Error(`Menu service responded ${res.status}`)
 
   const data = await res.json()
@@ -76,6 +86,46 @@ export async function fetchMenu(signal) {
   return list
     .map(normalizeMenuItem)
     .filter((i) => i.id != null && i.available)
+}
+
+// ---------- Cart stock reservations (public, keyed by session id) ----------
+
+// Thrown when the server can't grant the requested quantity. `remaining` is how many
+// units this session may still add for the item.
+export class StockError extends Error {
+  constructor(remaining) {
+    super(remaining > 0 ? `Only ${remaining} left` : 'Sold out')
+    this.name = 'StockError'
+    this.remaining = remaining
+  }
+}
+
+// Set this session's hold for an item to an absolute quantity (0 releases it). Returns
+// the remaining units the session may still add. Throws StockError on 409 (not enough
+// stock once other shoppers' holds are counted).
+export async function reserveItem(id, quantity) {
+  const res = await fetch(`${base()}/api/menu/${id}/reserve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', [SESSION_HEADER]: getSessionId() },
+    body: JSON.stringify({ quantity }),
+  })
+  if (res.status === 409) {
+    let remaining = 0
+    try { remaining = (await res.json())?.remaining ?? 0 } catch { /* ignore */ }
+    throw new StockError(remaining)
+  }
+  if (!res.ok) throw new Error(await readError(res))
+  const body = await res.json()
+  return body?.remaining ?? 0
+}
+
+// Drop this session's hold for an item.
+export async function releaseItem(id) {
+  const res = await fetch(`${base()}/api/menu/${id}/reserve`, {
+    method: 'DELETE',
+    headers: { [SESSION_HEADER]: getSessionId() },
+  })
+  if (!res.ok && res.status !== 404) throw new Error(await readError(res))
 }
 
 // ---------- Admin (write) API ----------
