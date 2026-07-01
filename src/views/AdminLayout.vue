@@ -5,6 +5,7 @@
 import { onMounted } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import BrandLogo from '../components/BrandLogo.vue'
+import ViewSwitch from '../components/ViewSwitch.vue'
 import { useAuth } from '../stores/auth.js'
 import { useToast } from '../stores/toast.js'
 
@@ -51,15 +52,13 @@ onMounted(() => {
         </RouterLink>
       </nav>
 
-      <div class="admin-sidebar-foot">
-        <RouterLink to="/" class="admin-back">← Back to site</RouterLink>
-      </div>
     </aside>
 
     <div class="admin-main">
       <header class="admin-topbar">
         <span class="admin-topbar-title">Forkly Admin</span>
         <div class="admin-topbar-end">
+          <ViewSwitch />
           <span v-if="auth.user" class="admin-user">{{ auth.user.name }}</span>
           <button type="button" class="admin-logout" @click="onLogout">Logout</button>
         </div>
@@ -141,15 +140,6 @@ onMounted(() => {
 }
 .admin-nav-icon { font-size: 1rem; width: 18px; text-align: center; }
 
-.admin-sidebar-foot { margin-top: auto; }
-.admin-back {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--color-muted);
-  text-decoration: none;
-}
-.admin-back:hover { color: var(--color-primary); }
-
 .admin-main { display: flex; flex-direction: column; min-width: 0; }
 .admin-topbar {
   display: flex;
@@ -215,7 +205,6 @@ onMounted(() => {
     gap: 12px;
   }
   .admin-nav { flex-direction: row; flex-wrap: wrap; }
-  .admin-sidebar-foot { margin: 0; }
   .admin-content { padding: 18px; }
 }
 </style>
