@@ -29,12 +29,15 @@ public class OrderServiceCreateTests
     private sealed class FakeOrderRepository : IOrderRepository
     {
         public Order? Saved { get; private set; }
+        // Order returned by GetByIdAsync — seed it for status-update tests.
+        public Order? Seeded { get; set; }
         public Task<Order> AddAsync(Order order, CancellationToken ct = default) { order.Id = 1; Saved = order; return Task.FromResult(order); }
         public Task UpdateAsync(Order order, CancellationToken ct = default) { Saved = order; return Task.CompletedTask; }
-        public Task<Order?> GetByIdAsync(int id, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<Order?> GetByIdAsync(int id, CancellationToken ct = default) => Task.FromResult(Seeded);
         public Task<Order?> GetByReferenceAsync(string r, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<IReadOnlyList<Order>> GetByUserAsync(int u, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<IReadOnlyList<Order>> GetRecentByUserAsync(int u, int c, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<IReadOnlyList<Order>> GetKitchenQueueAsync(CancellationToken ct = default) => throw new NotImplementedException();
         public Task<IReadOnlyList<Order>> GetAllForReportAsync(CancellationToken ct = default) => throw new NotImplementedException();
         public Task<(IReadOnlyList<Order> Items, int Total)> GetAllAsync(string? s, int? u, int p, int ps, CancellationToken ct = default) => throw new NotImplementedException();
     }
@@ -93,5 +96,32 @@ public class OrderServiceCreateTests
         var sut = new Forkly.OrderService.Services.OrderService(new FakeOrderRepository(), new UnavailableMenuCatalog());
         var req = new CreateOrderRequest { Items = { new CreateOrderItemDto { MenuId = 1, ItemName = "x", Price = 1m, Quantity = 1 } } };
         await Assert.ThrowsAsync<MenuUnavailableException>(() => sut.CreateAsync(1, req));
+    }
+
+    [Fact]
+    public async Task UpdatePaymentStatusAsync_marks_paid_without_touching_fulfilment_status()
+    {
+        // A paid order that the kitchen has already started preparing.
+        var repo = new FakeOrderRepository
+        {
+            Seeded = new Order { Id = 1, Status = OrderStatus.Preparing, PaymentStatus = PaymentStatus.Unpaid },
+        };
+        var sut = new Forkly.OrderService.Services.OrderService(repo, new FakeMenuCatalog());
+
+        var result = await sut.UpdatePaymentStatusAsync(1, PaymentStatus.Paid);
+
+        Assert.NotNull(result);
+        Assert.Equal(PaymentStatus.Paid, result!.PaymentStatus);
+        Assert.Equal(OrderStatus.Preparing, result.Status); // fulfilment untouched
+    }
+
+    [Fact]
+    public async Task UpdateStatusAsync_rejects_Paid_as_a_fulfilment_status()
+    {
+        var repo = new FakeOrderRepository { Seeded = new Order { Id = 1, Status = OrderStatus.Pending } };
+        var sut = new Forkly.OrderService.Services.OrderService(repo, new FakeMenuCatalog());
+
+        // "Paid" is now a payment status, not a fulfilment status.
+        await Assert.ThrowsAsync<ArgumentException>(() => sut.UpdateStatusAsync(1, "Paid"));
     }
 }

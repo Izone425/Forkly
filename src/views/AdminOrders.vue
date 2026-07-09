@@ -6,10 +6,14 @@ import { ref, onMounted } from 'vue'
 import { listAllOrders, updateOrderStatus, isOrdersApiConfigured } from '../services/adminApi.js'
 import { useToast } from '../stores/toast.js'
 
-// Must match Forkly.OrderService Models/OrderStatus.All.
+// Fulfilment statuses — must match Forkly.OrderService Models/OrderStatus.All.
+// Payment is tracked separately (PaymentStatus) and shown as a read-only badge.
 const ORDER_STATUSES = [
-  'Pending', 'Paid', 'Preparing', 'Completed', 'OutForDelivery', 'Delivered', 'Cancelled',
+  'Pending', 'Preparing', 'Completed', 'OutForDelivery', 'Delivered', 'Cancelled',
 ]
+
+const paymentLabel = (s) => (s === 'Paid' ? 'Paid' : 'Unpaid')
+const paymentClass = (s) => `pay-${(s || 'unpaid').toLowerCase()}`
 
 const { show } = useToast()
 
@@ -22,8 +26,14 @@ const loading = ref(false)
 const error = ref('')
 const isLive = ref(true)
 const busyId = ref(null)
+const expandedId = ref(null)
 
 const apiConfigured = isOrdersApiConfigured()
+
+// Toggle the inline item-detail panel for a row (single-open).
+function toggleExpand(id) {
+  expandedId.value = expandedId.value === id ? null : id
+}
 
 async function load() {
   loading.value = true
@@ -115,33 +125,67 @@ onMounted(load)
             <th>Placed</th>
             <th>Items</th>
             <th class="col-total">Total</th>
+            <th>Payment</th>
             <th>Status</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="loading">
-            <td colspan="6" class="orders-empty">Loading…</td>
+            <td colspan="7" class="orders-empty">Loading…</td>
           </tr>
           <tr v-else-if="!orders.length">
-            <td colspan="6" class="orders-empty">No orders found.</td>
+            <td colspan="7" class="orders-empty">No orders found.</td>
           </tr>
-          <tr v-for="order in orders" v-else :key="order.id">
-            <td class="cell-ref">{{ order.reference || `#${order.id}` }}</td>
-            <td class="cell-muted">user #{{ order.userId }}</td>
-            <td class="cell-muted">{{ shortDate(order.createdAt) }}</td>
-            <td class="cell-muted">{{ order.items.length }}</td>
-            <td class="col-total">{{ money(order.total) }}</td>
-            <td>
-              <select
-                class="orders-select status-select"
-                :value="order.status"
-                :disabled="busyId === order.id"
-                @change="changeStatus(order, $event)"
-              >
-                <option v-for="s in ORDER_STATUSES" :key="s" :value="s">{{ s }}</option>
-              </select>
-            </td>
-          </tr>
+          <template v-for="order in orders" v-else :key="order.id">
+            <tr>
+              <td class="cell-ref">{{ order.reference || `#${order.id}` }}</td>
+              <td class="cell-muted">user #{{ order.userId }}</td>
+              <td class="cell-muted">{{ shortDate(order.createdAt) }}</td>
+              <td>
+                <button
+                  type="button"
+                  class="items-toggle"
+                  :aria-expanded="expandedId === order.id"
+                  @click="toggleExpand(order.id)"
+                >
+                  {{ order.items?.length ?? 0 }} item{{ (order.items?.length ?? 0) === 1 ? '' : 's' }}
+                  <span class="expando" :class="{ open: expandedId === order.id }">▾</span>
+                </button>
+              </td>
+              <td class="col-total">{{ money(order.total) }}</td>
+              <td>
+                <span class="pay-badge" :class="paymentClass(order.paymentStatus)">
+                  {{ paymentLabel(order.paymentStatus) }}
+                </span>
+              </td>
+              <td>
+                <select
+                  class="orders-select status-select"
+                  :value="order.status"
+                  :disabled="busyId === order.id"
+                  @change="changeStatus(order, $event)"
+                >
+                  <option v-for="s in ORDER_STATUSES" :key="s" :value="s">{{ s }}</option>
+                </select>
+              </td>
+            </tr>
+            <tr v-if="expandedId === order.id" class="detail-row">
+              <td :colspan="7">
+                <ul class="detail-items">
+                  <li v-for="it in order.items" :key="it.id" class="detail-item">
+                    <span class="di-name">{{ it.itemName }} <span class="di-qty">×{{ it.quantity }}</span></span>
+                    <span class="di-unit">{{ money(it.price) }}</span>
+                    <span class="di-line">{{ money(it.price * it.quantity) }}</span>
+                  </li>
+                </ul>
+                <div class="detail-totals">
+                  <span>Subtotal {{ money(order.subtotal) }}</span>
+                  <span>SST {{ money(order.sst) }}</span>
+                  <span class="dt-total">Total {{ money(order.total) }}</span>
+                </div>
+              </td>
+            </tr>
+          </template>
         </tbody>
       </table>
     </div>
@@ -217,6 +261,60 @@ onMounted(load)
 .cell-muted { color: var(--color-muted); }
 .col-total { font-weight: 700; color: var(--color-ink); white-space: nowrap; }
 .orders-empty { text-align: center; color: var(--color-muted); padding: 28px; }
+
+/* Read-only payment badge */
+.pay-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+.pay-paid { color: var(--color-success); background: #ecfdf5; border: 1px solid #a7f3d0; }
+.pay-unpaid { color: #92400e; background: #fffbeb; border: 1px solid #fde68a; }
+
+/* Expandable item-detail row */
+.items-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--color-body);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.items-toggle:hover { color: var(--color-primary); }
+.expando { font-size: 0.75rem; color: var(--color-muted); transition: transform 0.15s ease; }
+.expando.open { transform: rotate(180deg); color: var(--color-primary); }
+
+.detail-row td { background: var(--color-bg, #f6f7fb); padding: 12px 16px; }
+.detail-items { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.detail-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 16px;
+  align-items: baseline;
+  font-size: 0.9rem;
+  color: var(--color-ink);
+}
+.di-qty { color: var(--color-muted); }
+.di-unit { color: var(--color-muted); white-space: nowrap; text-align: right; }
+.di-line { font-weight: 600; white-space: nowrap; text-align: right; min-width: 84px; }
+.detail-totals {
+  display: flex;
+  justify-content: flex-end;
+  gap: 18px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.88rem;
+  color: var(--color-muted);
+}
+.dt-total { font-weight: 800; color: var(--color-primary); }
 
 .row-btn {
   font: inherit;

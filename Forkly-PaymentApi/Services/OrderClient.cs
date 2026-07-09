@@ -13,8 +13,9 @@ public interface IOrderClient
     // so the Order service applies its own ownership checks. Null if not found/allowed.
     Task<OrderInfo?> GetOrderAsync(int orderId, string bearerToken, CancellationToken ct = default);
 
-    // Advances the order to Paid in the Order service (the single source of truth
-    // for status). Returns false if the call failed.
+    // Marks the order's PAYMENT status Paid in the Order service (the single source
+    // of truth). Kept separate from fulfilment status so it never overwrites
+    // Preparing/Completed/etc. Returns false if the call failed.
     Task<bool> MarkPaidAsync(int orderId, string bearerToken, CancellationToken ct = default);
 }
 
@@ -40,9 +41,9 @@ public class OrderClient : IOrderClient
 
     public async Task<bool> MarkPaidAsync(int orderId, string bearerToken, CancellationToken ct = default)
     {
-        using var req = new HttpRequestMessage(HttpMethod.Patch, $"/api/orders/{orderId}/status");
+        using var req = new HttpRequestMessage(HttpMethod.Patch, $"/api/orders/{orderId}/payment");
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-        req.Content = JsonContent.Create(new { status = "Paid" });
+        req.Content = JsonContent.Create(new { paymentStatus = "Paid" });
 
         using var res = await _http.SendAsync(req, ct);
         return res.IsSuccessStatusCode;

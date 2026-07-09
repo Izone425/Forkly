@@ -132,6 +132,23 @@ public class OrderService : IOrderService
         return Map(order);
     }
 
+    public async Task<OrderResponse?> UpdatePaymentStatusAsync(int orderId, string paymentStatus, CancellationToken ct = default)
+    {
+        if (!PaymentStatus.IsValid(paymentStatus))
+            throw new ArgumentException(
+                $"Unknown payment status '{paymentStatus}'. Valid values: {string.Join(", ", PaymentStatus.All)}.");
+
+        var order = await _repo.GetByIdAsync(orderId, ct);
+        if (order is null) return null;
+
+        // Payment is orthogonal to fulfilment — only PaymentStatus changes here.
+        order.PaymentStatus = paymentStatus;
+        order.UpdatedAt = DateTimeOffset.UtcNow;
+        await _repo.UpdateAsync(order, ct);
+
+        return Map(order);
+    }
+
     public async Task<ReorderResponse?> ReorderAsync(int orderId, int userId, CancellationToken ct = default)
     {
         var order = await _repo.GetByIdAsync(orderId, ct);
@@ -185,6 +202,7 @@ public class OrderService : IOrderService
         Sst = o.Sst,
         Total = o.Total,
         Status = o.Status,
+        PaymentStatus = o.PaymentStatus,
         CreatedAt = o.CreatedAt,
         UpdatedAt = o.UpdatedAt,
         Items = o.Items

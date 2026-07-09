@@ -15,15 +15,16 @@ const updating = ref(null) // orderId currently being advanced
 let timer = null
 
 // Board columns and the action that moves a ticket to the next column.
+// Queue tickets are all paid; a freshly-paid order arrives as "Pending" (the New column).
 const columns = [
-  { key: 'Paid', title: 'New', action: { to: 'Preparing', label: 'Start preparing' } },
+  { key: 'Pending', title: 'New', action: { to: 'Preparing', label: 'Start preparing' } },
   { key: 'Preparing', title: 'Preparing', action: { to: 'Completed', label: 'Mark ready' } },
   { key: 'Completed', title: 'Ready', action: { to: 'OutForDelivery', label: 'Out for delivery' } },
   { key: 'OutForDelivery', title: 'Out for delivery', action: null },
 ]
 
 const byStatus = computed(() => {
-  const map = { Paid: [], Preparing: [], Completed: [], OutForDelivery: [] }
+  const map = { Pending: [], Preparing: [], Completed: [], OutForDelivery: [] }
   for (const t of tickets.value) (map[t.status] || (map[t.status] = [])).push(t)
   return map
 })
@@ -151,7 +152,7 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .col { background: #1e293b; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
 .col-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; font-weight: 700; font-size: 0.82rem; letter-spacing: 0.06em; text-transform: uppercase; color: #fff; }
 .col-count { background: rgba(255,255,255,0.18); border-radius: 999px; padding: 1px 9px; font-size: 0.78rem; }
-.col-paid .col-head { background: #2563eb; }
+.col-pending .col-head { background: #2563eb; }
 .col-preparing .col-head { background: #d97706; }
 .col-completed .col-head { background: #059669; }
 .col-outfordelivery .col-head { background: #7c3aed; }

@@ -43,16 +43,24 @@ public class OrderResponse
     public decimal Total { get; set; }
     public string Currency { get; set; } = "MYR";
     public string Status { get; set; } = string.Empty;
+    public string PaymentStatus { get; set; } = Models.PaymentStatus.Unpaid;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public List<OrderItemResponse> Items { get; set; } = new();
 }
 
-// Sent by Payment (Aiman) / Kitchen (Zul) to advance an order's status.
+// Sent by Kitchen (Zul) / admin / Tracker (Alia) to advance an order's fulfilment status.
 public class UpdateStatusRequest
 {
     [Required]
     public string Status { get; set; } = string.Empty;
+}
+
+// Sent by Payment (Aiman) to update an order's payment status (→ Paid).
+public class UpdatePaymentStatusRequest
+{
+    [Required]
+    public string PaymentStatus { get; set; } = string.Empty;
 }
 
 public class OrderItemResponse

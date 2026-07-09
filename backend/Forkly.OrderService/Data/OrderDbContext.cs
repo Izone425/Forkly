@@ -34,6 +34,7 @@ public class OrderDbContext : DbContext
             e.Property(o => o.Sst).HasColumnType("numeric(12,2)");
             e.Property(o => o.Total).HasColumnType("numeric(12,2)");
             e.Property(o => o.Status).HasMaxLength(32).IsRequired();
+            e.Property(o => o.PaymentStatus).HasMaxLength(20).IsRequired();
 
             // Recent / history queries filter by user and sort by CreatedAt.
             e.HasIndex(o => new { o.UserId, o.CreatedAt });
