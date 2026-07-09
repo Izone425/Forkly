@@ -1,7 +1,8 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import FormField from '../components/FormField.vue'
-import { useRouter } from 'vue-router'
+import { useRouter, RouterLink } from 'vue-router'
+import { config } from '../config.js'
 import {
   me,
   updateProfile,
@@ -71,6 +72,9 @@ const statusClass = (s) => `badge-${(s || '').toLowerCase()}`
 const PAYMENT_LABELS = { Unpaid: 'Unpaid', Paid: 'Paid' }
 const paymentLabel = (s) => PAYMENT_LABELS[s] || s
 const paymentClass = (s) => `badge-pay-${(s || '').toLowerCase()}`
+
+// Show "Pay now" only when the order still needs paying and payment is live.
+const canPay = (o) => config.paymentReady && o.paymentStatus !== 'Paid' && o.status !== 'Cancelled'
 function money(amount, currency = 'MYR') {
   const symbol = currency === 'MYR' ? 'RM' : `${currency} `
   return `${symbol}${Number(amount || 0).toFixed(2)}`
@@ -440,8 +444,16 @@ function onLogout() {
             <div class="order-head">
               <span class="order-ref">{{ o.reference || ('#' + o.id) }}</span>
               <span class="order-date">{{ orderDate(o.placedAt) }}</span>
-              <span class="badge" :class="paymentClass(o.paymentStatus)">{{ paymentLabel(o.paymentStatus) }}</span>
-              <span class="badge" :class="statusClass(o.status)">{{ statusLabel(o.status) }}</span>
+              <div class="order-statuses">
+                <span v-if="o.paymentStatus !== 'Paid'" class="status-group">
+                  <span class="status-caption">Payment</span>
+                  <span class="badge" :class="paymentClass(o.paymentStatus)">{{ paymentLabel(o.paymentStatus) }}</span>
+                </span>
+                <span v-if="o.paymentStatus === 'Paid'" class="status-group">
+                  <span class="status-caption">Order</span>
+                  <span class="badge" :class="statusClass(o.status)">{{ statusLabel(o.status) }}</span>
+                </span>
+              </div>
             </div>
             <ul class="order-items">
               <li v-for="(it, i) in o.items" :key="i" class="order-item">
@@ -452,6 +464,11 @@ function onLogout() {
             <div class="order-foot">
               <span>Total</span>
               <span class="order-total">{{ money(o.total, o.currency) }}</span>
+            </div>
+            <div v-if="canPay(o)" class="order-actions">
+              <RouterLink class="btn btn-primary btn-pay" :to="{ name: 'payment', params: { orderId: o.id } }">
+                Pay now
+              </RouterLink>
             </div>
           </li>
         </ul>
@@ -600,11 +617,17 @@ textarea.field-input { resize: vertical; }
 .orders-card { grid-column: 1 / -1; }
 .order-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 .order-card { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 14px 16px; }
-.order-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.order-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
 .order-ref { font-weight: 700; color: var(--color-ink); }
 .order-date { font-size: 0.84rem; color: var(--color-muted); }
+.order-statuses { margin-left: auto; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.status-group { display: inline-flex; align-items: center; gap: 6px; }
+.status-caption {
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.4px; color: var(--color-muted);
+}
 .badge {
-  margin-left: auto; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.2px;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.2px;
   padding: 3px 10px; border-radius: 999px; text-transform: uppercase;
 }
 .badge-delivered { color: var(--color-success); background: #f0fdf4; border: 1px solid #bbf7d0; }
@@ -626,6 +649,8 @@ textarea.field-input { resize: vertical; }
   font-size: 0.9rem; font-weight: 600; color: var(--color-ink);
 }
 .order-total { font-weight: 800; color: var(--color-primary); }
+.order-actions { margin-top: 10px; display: flex; justify-content: flex-end; }
+.btn-pay { display: inline-block; padding: 8px 18px; font-size: 0.9rem; text-decoration: none; }
 
 @media (max-width: 900px) {
   .grid { grid-template-columns: 1fr; }
