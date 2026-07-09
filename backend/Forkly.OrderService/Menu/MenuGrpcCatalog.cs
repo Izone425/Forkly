@@ -38,4 +38,26 @@ public sealed class MenuGrpcCatalog : IMenuCatalog
             throw new MenuUnavailableException("The menu service is unavailable. Please try again.", ex);
         }
     }
+
+    public async Task<StockCommit> CommitAsync(
+        string sessionId, IReadOnlyList<(int MenuId, int Quantity)> items, CancellationToken ct = default)
+    {
+        var request = new CommitStockRequest { SessionId = sessionId ?? string.Empty };
+        request.Items.AddRange(items.Select(i => new CommitStockLine { MenuId = i.MenuId, Quantity = i.Quantity }));
+
+        try
+        {
+            var options = new CallOptions(deadline: DateTime.UtcNow.Add(CallTimeout), cancellationToken: ct);
+            var res = await _client.CommitStockAsync(request, options);
+            return new StockCommit(res.Committed, res.FailedMenuId, res.Available);
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.Cancelled && ct.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(ct);
+        }
+        catch (RpcException ex)
+        {
+            throw new MenuUnavailableException("The menu service is unavailable. Please try again.", ex);
+        }
+    }
 }

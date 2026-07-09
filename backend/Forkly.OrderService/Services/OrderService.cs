@@ -46,6 +46,17 @@ public class OrderService : IOrderService
             });
         }
 
+        // Reserve the physical stock: the Menu service atomically decrements each line
+        // (and clears this cart's holds). If anything is short, no order is created.
+        var commitLines = items.Select(i => (i.MenuId, i.Quantity)).ToList();
+        var commit = await _menu.CommitAsync(request.SessionId ?? string.Empty, commitLines, ct);
+        if (!commit.Committed)
+        {
+            var shortName = items.FirstOrDefault(i => i.MenuId == commit.FailedMenuId)?.ItemName ?? "An item";
+            throw new ArgumentException(
+                $"'{shortName}' is out of stock — only {commit.Available} left.");
+        }
+
         // Money is computed server-side from the line snapshots; never trust client totals.
         // Half-up rounding to match printed-receipt conventions (not banker's rounding).
         var subtotal = decimal.Round(items.Sum(i => i.Price * i.Quantity), 2, MidpointRounding.AwayFromZero);
@@ -90,6 +101,12 @@ public class OrderService : IOrderService
     public async Task<IReadOnlyList<OrderResponse>> GetRecentAsync(int userId, int count, CancellationToken ct = default)
     {
         var orders = await _repo.GetRecentByUserAsync(userId, count, ct);
+        return orders.Select(Map).ToList();
+    }
+
+    public async Task<IReadOnlyList<OrderResponse>> GetKitchenQueueAsync(CancellationToken ct = default)
+    {
+        var orders = await _repo.GetKitchenQueueAsync(ct);
         return orders.Select(Map).ToList();
     }
 

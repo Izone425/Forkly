@@ -1,18 +1,55 @@
 <script setup>
-import { onMounted, reactive } from 'vue'
+import { onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useMenu } from '../stores/menu.js'
 import { useCart } from '../stores/cart.js'
+import { useToast } from '../stores/toast.js'
 
 // Full menu, loaded from the backend (amirul-menu via the Order service).
-const { state: menu, load } = useMenu()
-const { add, qtyOf } = useCart()
-
-onMounted(load)
+const { state: menu, load, startPolling, stopPolling } = useMenu()
+const { add, increment, decrement, qtyOf } = useCart()
+const { show } = useToast()
 
 // Track items whose picture failed to load, so we can fall back gracefully.
 const failed = reactive(new Set())
 const showImage = (item) => Boolean(item.image) && !failed.has(item.id)
 const initialOf = (item) => (item.name || '?').trim().charAt(0).toUpperCase()
+
+// One in-flight cart change at a time per card, so a double-click can't reserve
+// the same quantity twice.
+const busyId = ref(null)
+
+// Run a cart mutation, surfacing "Only N left" / errors as a toast.
+async function change(fn, item) {
+  if (busyId.value != null) return
+  busyId.value = item.id
+  try {
+    await fn()
+  } catch (e) {
+    show(e?.message || 'Could not update your cart.')
+  } finally {
+    busyId.value = null
+  }
+}
+
+// No more can be added once stock (net of everyone's holds) is exhausted.
+function soldOut(item) {
+  return item.availableStock != null && item.availableStock <= 0
+}
+
+// Small hint under the control: sold out, or a low-stock nudge.
+function stockHint(item) {
+  const a = item.availableStock
+  if (a == null) return ''
+  if (a <= 0) return 'Sold out'
+  if (a <= 5) return `Only ${a} left`
+  return ''
+}
+
+onMounted(() => {
+  load()
+  startPolling()
+})
+onUnmounted(stopPolling)
 </script>
 
 <template>
@@ -41,17 +78,46 @@ const initialOf = (item) => (item.name || '?').trim().charAt(0).toUpperCase()
           <p class="menu-desc">{{ item.description }}</p>
           <p class="menu-price">RM{{ item.price }}</p>
 
-          <!-- Small add button on the bottom-right edge of the card. -->
+          <!-- Bottom-right of the card: a "+" to add, becoming a −/+ stepper
+               once in the cart. Adding is blocked when stock (net of other shoppers'
+               cart holds) runs out. -->
           <button
+            v-if="qtyOf(item.id) === 0"
             type="button"
             class="menu-add"
-            :class="{ 'in-cart': qtyOf(item.id) > 0 }"
-            :aria-label="`Add ${item.name} to cart`"
-            @click="add(item)"
+            :class="{ 'is-out': soldOut(item) }"
+            :disabled="soldOut(item) || busyId === item.id"
+            :aria-label="soldOut(item) ? `${item.name} sold out` : `Add ${item.name} to cart`"
+            @click="change(() => add(item), item)"
           >
-            <span v-if="qtyOf(item.id) > 0" class="menu-add-qty">{{ qtyOf(item.id) }}</span>
-            <span v-else aria-hidden="true">+</span>
+            <span aria-hidden="true">{{ soldOut(item) ? '—' : '+' }}</span>
           </button>
+
+          <div
+            v-else
+            class="menu-stepper"
+            role="group"
+            :aria-label="`Quantity of ${item.name}`"
+          >
+            <button
+              type="button"
+              class="menu-step"
+              aria-label="Decrease"
+              :disabled="busyId === item.id"
+              @click="change(() => decrement(item.id), item)"
+            >−</button>
+            <span class="menu-step-qty">{{ qtyOf(item.id) }}</span>
+            <button
+              type="button"
+              class="menu-step"
+              aria-label="Increase"
+              :disabled="soldOut(item) || busyId === item.id"
+              @click="change(() => increment(item.id), item)"
+            >+</button>
+          </div>
+
+          <!-- Sold-out / low-stock hint. -->
+          <span v-if="stockHint(item)" class="menu-stock-hint">{{ stockHint(item) }}</span>
         </article>
       </div>
     </div>
@@ -127,9 +193,54 @@ const initialOf = (item) => (item.name || '?').trim().charAt(0).toUpperCase()
   place-items: center;
   transition: transform 0.12s ease, background 0.12s ease;
 }
-.menu-add:hover { background: var(--color-primary-dark); transform: scale(1.08); }
-.menu-add.in-cart { background: var(--color-primary-dark); }
-.menu-add-qty { font-size: 1rem; font-weight: 800; }
+.menu-add:hover:not(:disabled) { background: var(--color-primary-dark); transform: scale(1.08); }
+.menu-add:disabled { cursor: not-allowed; }
+.menu-add.is-out { background: var(--color-border); color: var(--color-muted); box-shadow: none; }
+.menu-step:disabled { opacity: 0.4; cursor: not-allowed; }
+.menu-step:disabled:hover { background: #fff; color: var(--color-primary); }
+
+/* Sold-out / low-stock hint, bottom-left of the card. */
+.menu-stock-hint {
+  position: absolute;
+  left: 16px;
+  bottom: 24px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+/* Stepper (−/+ with qty) anchored where the add button sits, once in the cart. */
+.menu-stepper {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 4px;
+  box-shadow: var(--shadow-cta);
+}
+.menu-step {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--color-primary);
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  display: grid;
+  place-items: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.menu-step:hover { background: var(--color-primary); color: #fff; }
+.menu-step-qty { min-width: 20px; text-align: center; font-weight: 800; color: var(--color-ink); }
 
 @media (max-width: 900px) {
   .menu-grid { grid-template-columns: repeat(2, 1fr); }

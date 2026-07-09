@@ -47,6 +47,18 @@ public class OrderRepository : IOrderRepository
             .AsNoTracking()
             .ToListAsync(ct);
 
+    // Active orders for the kitchen board, oldest first (FIFO).
+    private static readonly string[] KitchenStatuses =
+        { OrderStatus.Paid, OrderStatus.Preparing, OrderStatus.Completed, OrderStatus.OutForDelivery };
+
+    public async Task<IReadOnlyList<Order>> GetKitchenQueueAsync(CancellationToken ct = default) =>
+        await _db.Orders
+            .Include(o => o.Items)
+            .Where(o => KitchenStatuses.Contains(o.Status))
+            .OrderBy(o => o.CreatedAt)
+            .AsNoTracking()
+            .ToListAsync(ct);
+
     public async Task<IReadOnlyList<Order>> GetAllForReportAsync(CancellationToken ct = default) =>
         await _db.Orders
             .Include(o => o.Items)

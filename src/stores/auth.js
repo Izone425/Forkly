@@ -36,6 +36,11 @@ export function useAuth() {
     () => Array.isArray(state.user?.roles) && state.user.roles.includes('admin'),
   )
 
+  // Kitchen crew. (The User service must define + assign the "crew" role.)
+  const isCrew = computed(
+    () => Array.isArray(state.user?.roles) && state.user.roles.includes('crew'),
+  )
+
   const initials = computed(() => {
     const name = state.user?.name?.trim()
     if (!name) return '?'
@@ -83,5 +88,5 @@ export function useAuth() {
   // this so they read a settled auth state (not a transient null) on first load.
   const whenReady = () => hydrate()
 
-  return { state, isLoggedIn, isAdmin, initials, setUser, signIn, logout, hydrate, whenReady }
+  return { state, isLoggedIn, isAdmin, isCrew, initials, setUser, signIn, logout, hydrate, whenReady }
 }

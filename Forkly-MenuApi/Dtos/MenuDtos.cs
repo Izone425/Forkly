@@ -18,9 +18,28 @@ public class MenuItemResponse
     public decimal UnitPrice { get; set; }                  // <-- entity Price exposed as unitPrice
     public string ImageUrl { get; set; } = string.Empty;
     public int StockQuantity { get; set; }
+
+    // Buyer-facing "how many can still be added" = StockQuantity minus every session's
+    // active cart hold. Powers the "N left" / sold-out UI; refreshed by the menu poll.
+    public int AvailableStock { get; set; }
+
     public bool Availability { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
+}
+
+// Body of POST /api/menu/{id}/reserve — the session's desired absolute quantity for the
+// item (0 releases the hold).
+public class ReserveRequest
+{
+    [Range(0, int.MaxValue, ErrorMessage = "quantity must be zero or greater.")]
+    public int Quantity { get; set; }
+}
+
+// Reply to a reserve/release call: how many units this session may still add.
+public class ReserveResponse
+{
+    public int Remaining { get; set; }
 }
 
 // === Requests ===

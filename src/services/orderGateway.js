@@ -1,65 +1,63 @@
 // =========================================================
 // Forkly — Order submission gateway
 //
-// OUR side of the contract with the order microservice. The order page builds
-// the cart locally; this module is the single place that "places" an order.
+// OUR side of the contract with the Order microservice (Hanif). The order page
+// builds the cart locally; this module is the single place that "places" an order.
 //
-// Until the order service exists (VITE_ORDER_API_BASE unset), submitOrder()
-// runs in DEMO mode: it returns a simulated confirmation so the UI flow can be
-// demonstrated end-to-end. Wire the real REST/gRPC-web call when ready.
+// When VITE_ORDER_API_BASE is set, submitOrder() POSTs to the real Order service
+// (POST /api/orders) and returns a redirect to the payment page. When unset, it
+// runs in DEMO mode so the UI flow still works without a backend.
 // =========================================================
 
 import { config } from '../config.js'
 import { getToken } from './authApi.js'
+import { getSessionId } from './session.js'
 
 export function isOrderApiConfigured() {
   return Boolean(config.orderApiBase)
 }
 
 /**
- * Turn the reactive cart into a plain, serializable payload.
+ * Turn the reactive cart into the Order service's CreateOrderRequest shape.
+ * The server recomputes subtotal/SST/total from these lines — client totals are ignored.
  *
  * @param {Array<{item: object, qty: number}>} lines
- * @param {object|null} [deliveryAddress] full address snapshot stored with the
- *   order (User Service owns the address book; the order keeps a copy).
+ * @param {object|null} [deliveryAddress] chosen address snapshot (Order service
+ *   ignores unknown fields today; kept for when it persists the address).
  */
 export function buildOrderPayload(lines, deliveryAddress = null) {
   return {
     source: 'forkly-web',
     currency: 'MYR',
+    // Cart/session that held the stock — the Order service passes this to the Menu
+    // service at checkout to decrement stock and release these holds.
+    sessionId: getSessionId(),
     items: lines.map((l) => ({
-      id: l.item.id,
-      name: l.item.name,
-      unitPrice: l.item.price,
+      menuId: Number(l.item.id) || 0,
+      itemName: l.item.name,
+      price: l.item.price,
       quantity: l.qty,
     })),
-    // Snapshot of the chosen delivery address (or null). The current backend
-    // ignores unknown fields; the order service will persist this later.
     deliveryAddress: deliveryAddress || null,
   }
 }
 
 /**
- * Submit an order.
- *
- * The .NET Order service prices the cart server-side (from the menu service),
- * creates a payment, and returns a `paymentRedirectUrl` pointing at the payment
- * page. The UI uses that to hand the customer off to payment.
+ * Submit an order to the Order service, then hand the customer to payment.
  *
  * @param {object} payload  result of buildOrderPayload()
- * @returns {Promise<{ok: boolean, orderId: string, simulated: boolean, paymentRedirectUrl: string|null}>}
+ * @returns {Promise<{ok, orderId, reference, total, simulated, paymentRedirectUrl}>}
  */
 export async function submitOrder(payload) {
-  // DEMO mode — no order service configured yet.
+  // DEMO mode — no Order service configured.
   if (!isOrderApiConfigured()) {
-    const orderId = 'DEMO-' + Date.now().toString(36).toUpperCase()
-    return { ok: true, orderId, simulated: true, paymentRedirectUrl: null }
+    const ref = 'DEMO-' + Date.now().toString(36).toUpperCase()
+    return { ok: true, orderId: ref, reference: ref, total: null, simulated: true, paymentRedirectUrl: null }
   }
 
-  // Real submission to the Order service REST API. Attach the signed-in user's
-  // bearer token so the order service can identify them (orders are authed).
   const token = getToken()
-  const res = await fetch(`${config.orderApiBase}/v1/orders`, {
+  const base = config.orderApiBase.replace(/\/+$/, '')
+  const res = await fetch(`${base}/api/orders`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -76,11 +74,15 @@ export async function submitOrder(payload) {
     throw new Error(message)
   }
 
+  // OrderResponse { id, reference, subtotal, sst, total, status, items, ... }
   const data = await res.json()
   return {
     ok: true,
-    orderId: data.orderId,
+    orderId: data.id,
+    reference: data.reference,
+    total: data.total,
     simulated: false,
-    paymentRedirectUrl: data.paymentRedirectUrl ?? null,
+    // Hand off to Aiman's payment page; the order id travels in the path.
+    paymentRedirectUrl: `/payment/${data.id}`,
   }
 }

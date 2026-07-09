@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import AppHeader from '../components/AppHeader.vue'
 import MenuItemCard from '../components/MenuItemCard.vue'
 import CartSummary from '../components/CartSummary.vue'
@@ -9,13 +9,17 @@ import { useMenu } from '../stores/menu.js'
 import { useCart } from '../stores/cart.js'
 import { useToast } from '../stores/toast.js'
 
-const { state: menu, load } = useMenu()
+const { state: menu, load, startPolling, stopPolling } = useMenu()
 const cart = useCart()
 const toast = useToast()
 
 const gridRef = ref(null)
 
-onMounted(load)
+onMounted(() => {
+  load()
+  startPolling()
+})
+onUnmounted(stopPolling)
 
 // Reorder: MERGE a previous order into the current cart (never replace), then
 // scroll back to the cart summary and confirm with a toast. The cart stays fully

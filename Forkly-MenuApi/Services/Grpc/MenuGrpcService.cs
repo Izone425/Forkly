@@ -43,6 +43,22 @@ public class MenuGrpcService : Forkly.Contracts.Menu.MenuService.MenuServiceBase
         return MapToProto(item);
     }
 
+    public override Task<CommitStockResponse> CommitStock(CommitStockRequest request, ServerCallContext context)
+        => CommitStockCoreAsync(request, context.CancellationToken);
+
+    // Transport-free core: decrement stock + clear the session's holds for each line.
+    public async Task<CommitStockResponse> CommitStockCoreAsync(CommitStockRequest request, CancellationToken ct)
+    {
+        var lines = request.Items.Select(i => (i.MenuId, i.Quantity)).ToList();
+        var outcome = await _menu.CommitStockAsync(request.SessionId, lines, ct);
+        return new CommitStockResponse
+        {
+            Committed = outcome.Committed,
+            FailedMenuId = outcome.FailedMenuId,
+            Available = outcome.Available,
+        };
+    }
+
     // Entity-DTO -> proto. Price (decimal RM) -> price_cents (int). The entity has no
     // emoji (it uses ImageUrl), and consumers don't need it, so emoji is empty.
     public static Forkly.Contracts.Menu.MenuItem MapToProto(MenuItemResponse m) => new()

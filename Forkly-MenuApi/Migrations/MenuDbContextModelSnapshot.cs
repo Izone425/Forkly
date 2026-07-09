@@ -125,6 +125,46 @@ namespace Forkly.MenuService.Migrations
                     b.ToTable("MenuItemImages", "public");
                 });
 
+            modelBuilder.Entity("Forkly.MenuService.Models.StockReservation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("MenuItemId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SessionId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.HasIndex("MenuItemId");
+
+                    b.HasIndex("MenuItemId", "SessionId")
+                        .IsUnique();
+
+                    b.ToTable("StockReservations", "public");
+                });
+
             modelBuilder.Entity("Forkly.MenuService.Models.MenuItem", b =>
                 {
                     b.HasOne("Forkly.MenuService.Models.Category", "Category")
@@ -141,6 +181,17 @@ namespace Forkly.MenuService.Migrations
                     b.HasOne("Forkly.MenuService.Models.MenuItem", "MenuItem")
                         .WithOne("Image")
                         .HasForeignKey("Forkly.MenuService.Models.MenuItemImage", "MenuItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MenuItem");
+                });
+
+            modelBuilder.Entity("Forkly.MenuService.Models.StockReservation", b =>
+                {
+                    b.HasOne("Forkly.MenuService.Models.MenuItem", "MenuItem")
+                        .WithMany()
+                        .HasForeignKey("MenuItemId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 

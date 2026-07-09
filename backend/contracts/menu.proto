@@ -11,6 +11,9 @@ service MenuService {
   rpc GetMenu (GetMenuRequest) returns (GetMenuResponse);
   // A single item — used by Order to price/validate a cart line.
   rpc GetItem (GetItemRequest) returns (MenuItem);
+  // Finalise a checkout: permanently decrement stock for each line and clear the
+  // ordering session's cart holds. Atomic — either every line commits or none do.
+  rpc CommitStock (CommitStockRequest) returns (CommitStockResponse);
 }
 
 message GetMenuRequest {}
@@ -33,4 +36,21 @@ message MenuItem {
 
 message GetMenuResponse {
   repeated MenuItem items = 1;
+}
+
+message CommitStockLine {
+  int32 menu_id = 1;
+  int32 quantity = 2;
+}
+
+message CommitStockRequest {
+  // Cart/session that placed the order — its holds for these items are cleared.
+  string session_id = 1;
+  repeated CommitStockLine items = 2;
+}
+
+message CommitStockResponse {
+  bool committed = 1;
+  int32 failed_menu_id = 2;  // 0 when committed
+  int32 available = 3;       // stock left for the failed item
 }
