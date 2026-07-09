@@ -47,14 +47,16 @@ public class OrderRepository : IOrderRepository
             .AsNoTracking()
             .ToListAsync(ct);
 
-    // Active orders for the kitchen board, oldest first (FIFO).
-    private static readonly string[] KitchenStatuses =
-        { OrderStatus.Paid, OrderStatus.Preparing, OrderStatus.Completed, OrderStatus.OutForDelivery };
+    // Active fulfilment states shown on the kitchen board (paid orders not yet
+    // delivered or cancelled). A freshly-paid order sits here as Pending.
+    private static readonly string[] ActiveFulfilment =
+        { OrderStatus.Pending, OrderStatus.Preparing, OrderStatus.Completed, OrderStatus.OutForDelivery };
 
+    // Paid orders still in an active fulfilment state, oldest first (FIFO).
     public async Task<IReadOnlyList<Order>> GetKitchenQueueAsync(CancellationToken ct = default) =>
         await _db.Orders
             .Include(o => o.Items)
-            .Where(o => KitchenStatuses.Contains(o.Status))
+            .Where(o => o.PaymentStatus == PaymentStatus.Paid && ActiveFulfilment.Contains(o.Status))
             .OrderBy(o => o.CreatedAt)
             .AsNoTracking()
             .ToListAsync(ct);

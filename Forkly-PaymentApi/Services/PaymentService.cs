@@ -69,14 +69,33 @@ public class PaymentService : IPaymentService
             return Map(payment);
         }
 
+        // Confirm with the Order service FIRST — it's the single source of truth for
+        // status. Only commit the payment as Paid if that succeeds; otherwise the
+        // idempotency short-circuit above could lock a Paid payment against an order
+        // stuck Pending, with no retry path. The kitchen (Zul) then sees the Paid
+        // order by polling the Order service.
+        bool marked;
+        try
+        {
+            marked = await _orders.MarkPaidAsync(payment.OrderId, token, ct);
+        }
+        catch
+        {
+            marked = false; // order service unreachable — treat as not paid, allow retry
+        }
+
+        if (!marked)
+        {
+            payment.Status = PaymentStatus.Failed;
+            payment.FailureReason = "Could not confirm the order as paid. Please try again.";
+            _store.Save(payment);
+            return Map(payment);
+        }
+
         payment.Status = PaymentStatus.Paid;
         payment.PaidAt = DateTimeOffset.UtcNow;
         payment.FailureReason = null;
         _store.Save(payment);
-
-        // Tell the Order service the order is paid (single source of truth for status).
-        // The kitchen (Zul) then sees it by polling the Order service for Paid orders.
-        await _orders.MarkPaidAsync(payment.OrderId, token, ct);
 
         return Map(payment);
     }

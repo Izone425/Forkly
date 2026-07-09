@@ -11,10 +11,10 @@ import {
   updateAddress,
   deleteAddress,
   setDefaultAddress,
-  listOrders,
   absoluteUrl,
   getToken,
 } from '../services/authApi.js'
+import { fetchOrderHistory } from '../services/orderGateway.js'
 import { useAuth } from '../stores/auth.js'
 
 const router = useRouter()
@@ -55,15 +55,22 @@ const orders = ref([])
 const ordersLoading = ref(true)
 const ordersErr = ref('')
 
+// Fulfilment status (payment is shown separately below).
 const STATUS_LABELS = {
   Pending: 'Pending',
   Preparing: 'Preparing',
+  Completed: 'Completed',
   OutForDelivery: 'Out for delivery',
   Delivered: 'Delivered',
   Cancelled: 'Cancelled',
 }
 const statusLabel = (s) => STATUS_LABELS[s] || s
 const statusClass = (s) => `badge-${(s || '').toLowerCase()}`
+
+// Payment status — separate from fulfilment, so a paid order keeps showing "Paid".
+const PAYMENT_LABELS = { Unpaid: 'Unpaid', Paid: 'Paid' }
+const paymentLabel = (s) => PAYMENT_LABELS[s] || s
+const paymentClass = (s) => `badge-pay-${(s || '').toLowerCase()}`
 function money(amount, currency = 'MYR') {
   const symbol = currency === 'MYR' ? 'RM' : `${currency} `
   return `${symbol}${Number(amount || 0).toFixed(2)}`
@@ -108,8 +115,10 @@ onMounted(async () => {
     router.push('/')
     return
   }
+  let profile
   try {
-    applyUser(await me())
+    profile = await me()
+    applyUser(profile)
   } catch {
     loadError.value = 'Your session has expired. Please sign in again.'
     logout()
@@ -120,8 +129,9 @@ onMounted(async () => {
   loading.value = false
 
   // Order history loads independently — a failure here shouldn't block the page.
+  // Read from the Order service (source of truth), keyed by the user's id.
   try {
-    orders.value = await listOrders()
+    orders.value = await fetchOrderHistory(Number(profile.id))
   } catch (err) {
     ordersErr.value = err.message
   } finally {
@@ -430,6 +440,7 @@ function onLogout() {
             <div class="order-head">
               <span class="order-ref">{{ o.reference || ('#' + o.id) }}</span>
               <span class="order-date">{{ orderDate(o.placedAt) }}</span>
+              <span class="badge" :class="paymentClass(o.paymentStatus)">{{ paymentLabel(o.paymentStatus) }}</span>
               <span class="badge" :class="statusClass(o.status)">{{ statusLabel(o.status) }}</span>
             </div>
             <ul class="order-items">
@@ -597,7 +608,11 @@ textarea.field-input { resize: vertical; }
   padding: 3px 10px; border-radius: 999px; text-transform: uppercase;
 }
 .badge-delivered { color: var(--color-success); background: #f0fdf4; border: 1px solid #bbf7d0; }
+.badge-completed { color: var(--color-success); background: #f0fdf4; border: 1px solid #bbf7d0; }
 .badge-preparing { color: var(--color-primary); background: var(--color-primary-soft); border: 1px solid #bfdbfe; }
+/* Payment badges (shown alongside the fulfilment badge) */
+.badge-pay-paid { color: var(--color-success); background: #ecfdf5; border: 1px solid #a7f3d0; }
+.badge-pay-unpaid { color: #92400e; background: #fffbeb; border: 1px solid #fde68a; }
 .badge-outfordelivery { color: #92400e; background: #fffbeb; border: 1px solid #fde68a; }
 .badge-pending { color: var(--color-muted); background: #f1f5f9; border: 1px solid var(--color-border); }
 .badge-cancelled { color: var(--color-danger); background: #fef2f2; border: 1px solid #fecaca; }

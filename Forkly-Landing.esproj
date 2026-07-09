@@ -3,6 +3,9 @@
     <!-- Forkly landing page (root Vite app). Dev server: http://localhost:5173 -->
     <StartupCommand>npm run dev</StartupCommand>
     <ShouldRunBuildScript>false</ShouldRunBuildScript>
+    <!-- Deps are already restored in node_modules; skip the pre-launch npm install
+         step, whose cancellation surfaces as a bare OperationCanceledException popup. -->
+    <ShouldRunNpmInstall>false</ShouldRunNpmInstall>
     <BuildOutputFolder>$(MSBuildProjectDirectory)\dist</BuildOutputFolder>
   </PropertyGroup>
 </Project>

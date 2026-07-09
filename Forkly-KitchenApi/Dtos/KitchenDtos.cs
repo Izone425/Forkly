@@ -5,7 +5,7 @@ public class KitchenTicket
 {
     public int OrderId { get; set; }
     public string? Reference { get; set; }
-    public string Status { get; set; } = string.Empty; // Paid | Preparing | Completed | OutForDelivery
+    public string Status { get; set; } = string.Empty; // Pending | Preparing | Completed | OutForDelivery (all Paid)
     public DateTimeOffset PlacedAt { get; set; }
     public decimal Total { get; set; }
     public List<KitchenLine> Items { get; set; } = new();

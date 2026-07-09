@@ -22,8 +22,12 @@ public class Order
     public decimal Sst { get; set; }
     public decimal Total { get; set; }
 
-    // One of OrderStatus.All, stored as a string for readability.
+    // Fulfilment state — one of OrderStatus.All, stored as a string for readability.
     public string Status { get; set; } = OrderStatus.Pending;
+
+    // Payment state — one of PaymentStatus.All. Tracked separately from Status so a
+    // paid order keeps showing "Paid" while the kitchen advances the fulfilment status.
+    public string PaymentStatus { get; set; } = Models.PaymentStatus.Unpaid;
 
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }

@@ -20,9 +20,13 @@ public interface IOrderService
     // Kitchen (crew/admin): active orders for the kitchen board, oldest first.
     Task<IReadOnlyList<OrderResponse>> GetKitchenQueueAsync(CancellationToken ct = default);
 
-    // Service/staff-facing: advance an order's status. Returns null if not found,
-    // throws ArgumentException if the status value is not a known OrderStatus.
+    // Service/staff-facing: advance an order's fulfilment status. Returns null if not
+    // found, throws ArgumentException if the status value is not a known OrderStatus.
     Task<OrderResponse?> UpdateStatusAsync(int orderId, string status, CancellationToken ct = default);
+
+    // Payment (Aiman): update an order's payment status (→ Paid). Returns null if not
+    // found, throws ArgumentException if the value is not a known PaymentStatus.
+    Task<OrderResponse?> UpdatePaymentStatusAsync(int orderId, string paymentStatus, CancellationToken ct = default);
 
     // Returns the source order's items for the frontend to merge into the cart.
     // Writes nothing. Null if the order does not exist or is not the caller's.

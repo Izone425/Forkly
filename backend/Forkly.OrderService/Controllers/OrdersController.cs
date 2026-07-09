@@ -102,22 +102,38 @@ public class OrdersController : ControllerBase
         }
     }
 
-    // GET /api/orders/kitchen/queue — active orders for the kitchen board (oldest
-    // first): Paid/Preparing/Completed/OutForDelivery. Crew + admin only.
+    // GET /api/orders/kitchen/queue — paid orders in an active fulfilment state,
+    // oldest first: Pending/Preparing/Completed/OutForDelivery. Crew + admin only.
     [Authorize(Roles = "crew,admin")]
     [HttpGet("kitchen/queue")]
     public async Task<IActionResult> KitchenQueue(CancellationToken ct) =>
         Ok(await _orders.GetKitchenQueueAsync(ct));
 
-    // PATCH /api/orders/{orderId}/status — advance the order's status.
-    // Used by Payment (→ Paid), Kitchen (→ Preparing/Completed/OutForDelivery),
-    // and Tracker (→ Delivered).
+    // PATCH /api/orders/{orderId}/status — advance the order's FULFILMENT status.
+    // Used by Kitchen (→ Preparing/Completed/OutForDelivery) and Tracker (→ Delivered).
     [HttpPatch("{orderId:int}/status")]
     public async Task<IActionResult> UpdateStatus(int orderId, [FromBody] UpdateStatusRequest request, CancellationToken ct)
     {
         try
         {
             var updated = await _orders.UpdateStatusAsync(orderId, request.Status, ct);
+            return updated is null ? NotFound() : Ok(updated);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    // PATCH /api/orders/{orderId}/payment — update the order's PAYMENT status (→ Paid).
+    // Used by the Payment service once a charge is confirmed. Kept separate from the
+    // fulfilment status so paying never overwrites Preparing/Completed/etc.
+    [HttpPatch("{orderId:int}/payment")]
+    public async Task<IActionResult> UpdatePaymentStatus(int orderId, [FromBody] UpdatePaymentStatusRequest request, CancellationToken ct)
+    {
+        try
+        {
+            var updated = await _orders.UpdatePaymentStatusAsync(orderId, request.PaymentStatus, ct);
             return updated is null ? NotFound() : Ok(updated);
         }
         catch (ArgumentException ex)

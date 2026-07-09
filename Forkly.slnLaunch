@@ -17,6 +17,14 @@
       {
         "Path": "Forkly-Landing.esproj",
         "Action": "Start"
+      },
+      {
+        "Path": "Forkly-KitchenApi\\Forkly.KitchenService.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Forkly-PaymentApi\\Forkly.PaymentService.csproj",
+        "Action": "Start"
       }
     ]
   }

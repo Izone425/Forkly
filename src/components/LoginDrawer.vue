@@ -4,14 +4,17 @@
 // rendering the in-app LoginForm. On success the auth store is already updated,
 // so CartSummary's watch(isLoggedIn) resumes a pending checkout — we just close.
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import LoginForm from './LoginForm.vue'
+import RegisterForm from './RegisterForm.vue'
 
 const router = useRouter()
 const isOpen = ref(false)
+const mode = ref('login') // 'login' | 'register' — swapped in-place, no navigation
 const closeBtn = ref(null)
 
 function open() {
+  mode.value = 'login' // always open on sign-in
   isOpen.value = true
   nextTick(() => closeBtn.value?.focus())
 }
@@ -51,10 +54,10 @@ onBeforeUnmount(() => {
         class="drawer-panel"
         role="dialog"
         aria-modal="true"
-        aria-label="Sign in to Forkly"
+        :aria-label="mode === 'register' ? 'Create your Forkly account' : 'Sign in to Forkly'"
       >
         <header class="drawer-head">
-          <span class="drawer-title">Sign in</span>
+          <span class="drawer-title">{{ mode === 'register' ? 'Create your account' : 'Sign in' }}</span>
           <button
             ref="closeBtn"
             type="button"
@@ -67,13 +70,23 @@ onBeforeUnmount(() => {
         </header>
 
         <div class="drawer-body">
-          <p class="drawer-intro">Sign in to your Forkly account to continue.</p>
-          <!-- Hide the register switch here: navigating to /register would drop a
-               pending checkout. The full /login page shows it. -->
-          <LoginForm v-if="isOpen" :show-switch="false" @success="onSuccess" />
-          <p class="drawer-foot">
+          <p class="drawer-intro">
+            {{ mode === 'register'
+              ? 'Create a Forkly account to continue.'
+              : 'Sign in to your Forkly account to continue.' }}
+          </p>
+          <!-- The switch is hidden on the forms; the drawer swaps them in-place
+               below so a pending checkout is never dropped by navigation. -->
+          <LoginForm v-if="isOpen && mode === 'login'" :show-switch="false" @success="onSuccess" />
+          <RegisterForm v-else-if="isOpen && mode === 'register'" :show-switch="false" @success="onSuccess" />
+
+          <p v-if="mode === 'login'" class="drawer-foot">
             New to Forkly?
-            <RouterLink to="/register" @click="close">Create an account</RouterLink>
+            <button type="button" class="drawer-link" @click="mode = 'register'">Create an account</button>
+          </p>
+          <p v-else class="drawer-foot">
+            Already have an account?
+            <button type="button" class="drawer-link" @click="mode = 'login'">Sign in</button>
           </p>
         </div>
       </aside>
@@ -151,6 +164,17 @@ onBeforeUnmount(() => {
   font-size: 0.9rem;
   color: var(--color-body, #475569);
 }
+.drawer-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--color-primary, #2563eb);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.drawer-link:hover { text-decoration: none; }
 
 @media (max-width: 720px) {
   .drawer-panel { width: 100vw; }
