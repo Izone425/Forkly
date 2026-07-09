@@ -30,6 +30,13 @@ const routes = [
     component: () => import('../views/AccountView.vue'),
   },
   {
+    // Payment page (Aiman). The customer lands here after placing an order; the
+    // orderId travels in the path. Requires a signed-in user (checked in-page).
+    path: '/payment/:orderId',
+    name: 'payment',
+    component: () => import('../views/PaymentView.vue'),
+  },
+  {
     // Standalone admin sales report (kept for backwards-compatible deep links).
     // The guarded entry point is /admin/reports below; the old /admin/report alias
     // was removed so there's no admin-looking URL that skips the role guard.

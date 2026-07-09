@@ -22,6 +22,11 @@ export const config = {
   // order page accepts orders in a local "demo" mode (no network call).
   orderApiBase: (import.meta.env.VITE_ORDER_API_BASE || '').trim(),
 
+  // Base URL of the PAYMENT microservice (Aiman). The payment page uses this to
+  // start and settle the (mock) payment. When empty, the payment page shows a
+  // "not configured" state.
+  paymentApiBase: (import.meta.env.VITE_PAYMENT_API_BASE || '').trim(),
+
   // Base URL of the KITCHEN microservice (Zul). The crew kitchen board reads its
   // queue and pushes status changes here. When empty, the kitchen page shows a
   // "not configured" state.
