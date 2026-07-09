@@ -102,6 +102,13 @@ public class OrdersController : ControllerBase
         }
     }
 
+    // GET /api/orders/kitchen/queue — active orders for the kitchen board (oldest
+    // first): Paid/Preparing/Completed/OutForDelivery. Crew + admin only.
+    [Authorize(Roles = "crew,admin")]
+    [HttpGet("kitchen/queue")]
+    public async Task<IActionResult> KitchenQueue(CancellationToken ct) =>
+        Ok(await _orders.GetKitchenQueueAsync(ct));
+
     // PATCH /api/orders/{orderId}/status — advance the order's status.
     // Used by Payment (→ Paid), Kitchen (→ Preparing/Completed/OutForDelivery),
     // and Tracker (→ Delivered).

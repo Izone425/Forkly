@@ -93,6 +93,12 @@ public class OrderService : IOrderService
         return orders.Select(Map).ToList();
     }
 
+    public async Task<IReadOnlyList<OrderResponse>> GetKitchenQueueAsync(CancellationToken ct = default)
+    {
+        var orders = await _repo.GetKitchenQueueAsync(ct);
+        return orders.Select(Map).ToList();
+    }
+
     public async Task<OrderResponse?> GetByReferenceAsync(string reference, CancellationToken ct = default)
     {
         var order = await _repo.GetByReferenceAsync(reference, ct);

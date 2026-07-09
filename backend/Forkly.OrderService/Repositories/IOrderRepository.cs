@@ -20,6 +20,10 @@ public interface IOrderRepository
     // Newest-first, capped at `count` (used for the "recent orders" view).
     Task<IReadOnlyList<Order>> GetRecentByUserAsync(int userId, int count, CancellationToken ct = default);
 
+    // Active orders (with items) for the kitchen board, oldest first:
+    // Paid / Preparing / Completed / OutForDelivery.
+    Task<IReadOnlyList<Order>> GetKitchenQueueAsync(CancellationToken ct = default);
+
     // All non-cancelled orders (with items) across all users, for reporting.
     Task<IReadOnlyList<Order>> GetAllForReportAsync(CancellationToken ct = default);
 
