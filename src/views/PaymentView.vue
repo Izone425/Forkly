@@ -97,7 +97,7 @@ async function pay() {
           <div v-if="payment.cardLast4"><dt>Card</dt><dd>•••• {{ payment.cardLast4 }}</dd></div>
         </dl>
         <div class="done-actions">
-          <RouterLink class="btn btn-primary btn-block" :to="{ name: 'account' }">Track my order</RouterLink>
+          <RouterLink class="btn btn-primary btn-block" :to="{ name: 'track', params: { orderId: payment.orderId } }">Track my order</RouterLink>
           <RouterLink class="btn btn-ghost btn-block" :to="{ name: 'landing' }">Back to home</RouterLink>
         </div>
       </div>
