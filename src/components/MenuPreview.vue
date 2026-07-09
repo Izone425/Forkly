@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useMenu } from '../stores/menu.js'
 import { useCart } from '../stores/cart.js'
 import { useToast } from '../stores/toast.js'
@@ -8,6 +8,11 @@ import { useToast } from '../stores/toast.js'
 const { state: menu, load, startPolling, stopPolling } = useMenu()
 const { add, increment, decrement, qtyOf } = useCart()
 const { show } = useToast()
+
+// Track items whose picture failed to load, so we can fall back gracefully.
+const failed = reactive(new Set())
+const showImage = (item) => Boolean(item.image) && !failed.has(item.id)
+const initialOf = (item) => (item.name || '?').trim().charAt(0).toUpperCase()
 
 // One in-flight cart change at a time per card, so a double-click can't reserve
 // the same quantity twice.
@@ -58,8 +63,16 @@ onUnmounted(stopPolling)
       <div v-else class="menu-grid">
         <article v-for="item in menu.items" :key="item.id" class="menu-card">
           <div class="menu-media" aria-hidden="true">
-            <img v-if="item.image" :src="item.image" :alt="item.name" class="menu-img" loading="lazy" />
-            <span v-else class="menu-emoji">{{ item.emoji }}</span>
+            <img
+              v-if="showImage(item)"
+              :src="item.image"
+              :alt="item.name"
+              class="menu-img"
+              loading="lazy"
+              @error="failed.add(item.id)"
+            />
+            <span v-else-if="item.emoji" class="menu-emoji">{{ item.emoji }}</span>
+            <span v-else class="menu-fallback">{{ initialOf(item) }}</span>
           </div>
           <h3 class="menu-name">{{ item.name }}</h3>
           <p class="menu-desc">{{ item.description }}</p>
@@ -155,6 +168,7 @@ onUnmounted(stopPolling)
 }
 .menu-emoji { font-size: 2.6rem; line-height: 1; }
 .menu-img { width: 100%; height: 100%; object-fit: cover; }
+.menu-fallback { font-size: 2rem; font-weight: 800; color: var(--color-primary); }
 .menu-name { margin: 0 0 6px; font-size: 1.15rem; color: var(--color-ink); font-weight: 700; }
 .menu-desc { margin: 0 0 10px; font-size: 0.88rem; color: var(--color-muted); }
 .menu-price { margin: 0; font-size: 1.3rem; font-weight: 800; color: var(--color-primary); }

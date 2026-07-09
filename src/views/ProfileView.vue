@@ -44,6 +44,8 @@ const editingId = ref(null)   // null = not editing; 0 = adding new; >0 = editin
 const savingAddr = ref(false)
 const addrErr = ref('')
 const showAddrForm = computed(() => editingId.value !== null)
+const MAX_ADDRESSES = 3
+const canAddAddress = computed(() => addresses.value.length < MAX_ADDRESSES)
 
 const uploadingAvatar = ref(false)
 const avatarErr = ref('')
@@ -146,6 +148,10 @@ async function onSaveProfile() {
 // ---- Delivery addresses ----
 function openAddAddress() {
   addrErr.value = ''
+  if (!canAddAddress.value) {
+    addrErr.value = `You can save up to ${MAX_ADDRESSES} addresses. Delete one to add another.`
+    return
+  }
   addrForm.value = { ...blankAddress(), isDefault: addresses.value.length === 0 }
   editingId.value = 0
 }
@@ -323,7 +329,14 @@ function onLogout() {
         <section class="card">
           <div class="card-head">
             <h3 class="card-title">Delivery addresses</h3>
-            <button v-if="!showAddrForm" type="button" class="btn btn-ghost btn-sm" @click="openAddAddress">
+            <button
+              v-if="!showAddrForm"
+              type="button"
+              class="btn btn-ghost btn-sm"
+              :disabled="!canAddAddress"
+              :title="canAddAddress ? '' : 'Maximum of 3 saved addresses reached'"
+              @click="openAddAddress"
+            >
               + Add address
             </button>
           </div>
