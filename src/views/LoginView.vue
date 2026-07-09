@@ -9,9 +9,14 @@ const router = useRouter()
 const route = useRoute()
 
 function onSuccess(user) {
-  // Admins land in the admin area; everyone else follows ?redirect or goes home.
+  // Route by role: admins -> admin area, crew -> kitchen, everyone else follows
+  // ?redirect or goes home.
   if (user?.roles?.includes('admin')) {
     router.push('/admin')
+    return
+  }
+  if (user?.roles?.includes('crew')) {
+    router.push('/kitchen')
     return
   }
   const dest = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
