@@ -22,6 +22,11 @@ export const config = {
   // order page accepts orders in a local "demo" mode (no network call).
   orderApiBase: (import.meta.env.VITE_ORDER_API_BASE || '').trim(),
 
+  // Base URL of the KITCHEN microservice (Zul). The crew kitchen board reads its
+  // queue and pushes status changes here. When empty, the kitchen page shows a
+  // "not configured" state.
+  kitchenApiBase: (import.meta.env.VITE_KITCHEN_API_BASE || '').trim(),
+
   // Whether the PAYMENT service/page is ready. When true, placing an order
   // auto-redirects to the payment page. Until the payment team (other branch)
   // ships, keep this false: the order is created and shown as awaiting payment.
