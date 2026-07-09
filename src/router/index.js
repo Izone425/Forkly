@@ -37,6 +37,13 @@ const routes = [
     component: () => import('../views/PaymentView.vue'),
   },
   {
+    // Order tracking (Alia). The customer lands here after payment; polls live
+    // status + the mock delivery ETA. Requires a signed-in user (checked in-page).
+    path: '/track/:orderId',
+    name: 'track',
+    component: () => import('../views/TrackingView.vue'),
+  },
+  {
     // Standalone admin sales report (kept for backwards-compatible deep links).
     // The guarded entry point is /admin/reports below; the old /admin/report alias
     // was removed so there's no admin-looking URL that skips the role guard.
