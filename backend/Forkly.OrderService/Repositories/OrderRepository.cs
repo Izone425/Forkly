@@ -73,6 +73,9 @@ public class OrderRepository : IOrderRepository
     {
         var query = _db.Orders.AsQueryable();
 
+        // Admin sees paid orders only — unpaid (abandoned/unsettled) carts are hidden.
+        query = query.Where(o => o.PaymentStatus == PaymentStatus.Paid);
+
         if (!string.IsNullOrWhiteSpace(status))
             query = query.Where(o => o.Status == status);
         if (userId is not null)
