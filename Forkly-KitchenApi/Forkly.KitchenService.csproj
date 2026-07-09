@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- These machines have only the .NET 10 runtime; allow the net8.0 build to
+         roll forward onto it. Target framework stays net8.0. -->
+    <RollForward>LatestMajor</RollForward>
+    <!-- Don't emit an apphost .exe — Windows Application Control blocks the
+         unsigned freshly-built apphost; launched via the trusted `dotnet` host. -->
+    <UseAppHost>false</UseAppHost>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.11" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+</Project>

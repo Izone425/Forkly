@@ -16,6 +16,7 @@ public class MenuDbContext : DbContext
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
     public DbSet<MenuItemImage> MenuItemImages => Set<MenuItemImage>();
+    public DbSet<StockReservation> StockReservations => Set<StockReservation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -59,6 +60,24 @@ public class MenuDbContext : DbContext
             e.ToTable("MenuItemImages");
             e.HasKey(i => i.MenuItemId);
             e.Property(i => i.ContentType).HasMaxLength(64);
+        });
+
+        // Short-lived per-session stock holds (cart reservations). One row per
+        // (item, session); the unique index makes that an upsertable key. Extra indexes
+        // speed the availability sum (by item) and expiry sweeps (by ExpiresAt).
+        modelBuilder.Entity<StockReservation>(e =>
+        {
+            e.ToTable("StockReservations");
+            e.HasKey(r => r.Id);
+            e.Property(r => r.SessionId).HasMaxLength(64).IsRequired();
+            e.HasIndex(r => new { r.MenuItemId, r.SessionId }).IsUnique();
+            e.HasIndex(r => r.MenuItemId);
+            e.HasIndex(r => r.ExpiresAt);
+
+            e.HasOne(r => r.MenuItem)
+                .WithMany()
+                .HasForeignKey(r => r.MenuItemId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

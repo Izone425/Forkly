@@ -21,9 +21,11 @@ function close() {
 
 function onSuccess(user) {
   // Profile is set by the form via the auth store. Close the drawer, and send
-  // admins straight to the admin area (clients stay where they were, e.g. mid-checkout).
+  // admins to the admin area and crew to the kitchen (clients stay where they
+  // were, e.g. mid-checkout).
   close()
   if (user?.roles?.includes('admin')) router.push('/admin')
+  else if (user?.roles?.includes('crew')) router.push('/kitchen')
 }
 
 function onKeydown(event) {

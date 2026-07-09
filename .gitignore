@@ -15,6 +15,7 @@ dist-ssr
 
 # Visual Studio per-user cache
 .vs/
+*.csproj.user
 
 # Claude Code local settings
 .claude/

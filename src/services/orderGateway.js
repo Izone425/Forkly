@@ -11,6 +11,7 @@
 
 import { config } from '../config.js'
 import { getToken } from './authApi.js'
+import { getSessionId } from './session.js'
 
 export function isOrderApiConfigured() {
   return Boolean(config.orderApiBase)
@@ -26,6 +27,11 @@ export function isOrderApiConfigured() {
  */
 export function buildOrderPayload(lines, deliveryAddress = null) {
   return {
+    source: 'forkly-web',
+    currency: 'MYR',
+    // Cart/session that held the stock — the Order service passes this to the Menu
+    // service at checkout to decrement stock and release these holds.
+    sessionId: getSessionId(),
     items: lines.map((l) => ({
       menuId: Number(l.item.id) || 0,
       itemName: l.item.name,

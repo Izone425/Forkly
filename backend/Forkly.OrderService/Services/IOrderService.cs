@@ -17,6 +17,9 @@ public interface IOrderService
     // Service/staff-facing (Payment, Kitchen): look up any order by its reference.
     Task<OrderResponse?> GetByReferenceAsync(string reference, CancellationToken ct = default);
 
+    // Kitchen (crew/admin): active orders for the kitchen board, oldest first.
+    Task<IReadOnlyList<OrderResponse>> GetKitchenQueueAsync(CancellationToken ct = default);
+
     // Service/staff-facing: advance an order's status. Returns null if not found,
     // throws ArgumentException if the status value is not a known OrderStatus.
     Task<OrderResponse?> UpdateStatusAsync(int orderId, string status, CancellationToken ct = default);

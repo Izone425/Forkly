@@ -30,6 +30,43 @@ public class MenuController : ControllerBase
         return item is null ? NotFound() : Ok(item);
     }
 
+    // --- Cart stock holds (public; keyed by the X-Forkly-Session header) ---
+
+    // Header the browser sends to identify a guest/user cart across reserve/release calls.
+    private const string SessionHeader = "X-Forkly-Session";
+
+    // POST /api/menu/{id}/reserve — set this session's hold for the item to the given
+    // quantity (0 releases it). 200 with how many the session may still add, or 409 when
+    // there isn't enough stock left once other shoppers' holds are counted.
+    [HttpPost("{id:int}/reserve")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Reserve(int id, [FromBody] ReserveRequest request, CancellationToken ct)
+    {
+        if (!Request.Headers.TryGetValue(SessionHeader, out var sid) || string.IsNullOrWhiteSpace(sid))
+            return BadRequest(new { error = $"Missing {SessionHeader} header." });
+
+        var result = await _menu.ReserveAsync(id, sid.ToString(), request.Quantity, ct);
+        return result.Status switch
+        {
+            ReservationStatus.Accepted => Ok(new ReserveResponse { Remaining = result.Remaining }),
+            ReservationStatus.Insufficient => Conflict(new ReserveResponse { Remaining = result.Remaining }),
+            ReservationStatus.Unavailable => Conflict(new { error = "This item is currently unavailable." }),
+            _ => NotFound(),
+        };
+    }
+
+    // DELETE /api/menu/{id}/reserve — drop this session's hold for the item.
+    [HttpDelete("{id:int}/reserve")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Release(int id, CancellationToken ct)
+    {
+        if (!Request.Headers.TryGetValue(SessionHeader, out var sid) || string.IsNullOrWhiteSpace(sid))
+            return BadRequest(new { error = $"Missing {SessionHeader} header." });
+
+        await _menu.ReleaseAsync(id, sid.ToString(), ct);
+        return NoContent();
+    }
+
     // --- Admin (requires an admin JWT issued by the User service) ---
 
     // GET /api/menu/admin/all — admin listing incl. unavailable items.

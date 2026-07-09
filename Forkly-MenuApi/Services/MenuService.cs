@@ -6,20 +6,55 @@ namespace Forkly.MenuService.Services;
 
 public class MenuService : IMenuService
 {
+    // How long a cart hold lives before it lapses and frees the stock. Refreshed on every
+    // cart change, so an actively-shopping session keeps its hold.
+    private static readonly TimeSpan ReservationTtl = TimeSpan.FromMinutes(15);
+
     private readonly IMenuRepository _repo;
     public MenuService(IMenuRepository repo) => _repo = repo;
 
     public async Task<IReadOnlyList<MenuItemResponse>> GetMenuAsync(bool availableOnly, CancellationToken ct = default)
     {
         var items = await _repo.GetAllAsync(availableOnly, ct);
-        return items.Select(Map).ToList();
+        var responses = items.Select(Map).ToList();
+
+        // Overlay live availability (stock minus everyone's active cart holds).
+        var avail = await _repo.GetAvailableStockAsync(responses.Select(r => r.Id).ToList(), ct);
+        foreach (var r in responses)
+            r.AvailableStock = avail.TryGetValue(r.Id, out var a) ? a : r.StockQuantity;
+
+        return responses;
     }
 
     public async Task<MenuItemResponse?> GetByIdAsync(int id, CancellationToken ct = default)
     {
         var item = await _repo.GetByIdAsync(id, ct);
-        return item is null ? null : Map(item);
+        if (item is null) return null;
+
+        var dto = Map(item);
+        var avail = await _repo.GetAvailableStockAsync(new[] { id }, ct);
+        dto.AvailableStock = avail.TryGetValue(id, out var a) ? a : dto.StockQuantity;
+        return dto;
     }
+
+    public async Task<ReservationResult> ReserveAsync(int id, string sessionId, int quantity, CancellationToken ct = default)
+    {
+        var item = await _repo.GetByIdAsync(id, ct);
+        if (item is null) return new ReservationResult(ReservationStatus.NotFound, 0);
+        if (!item.Availability) return new ReservationResult(ReservationStatus.Unavailable, 0);
+
+        var outcome = await _repo.ReserveAsync(id, sessionId, quantity, ReservationTtl, ct);
+        return new ReservationResult(
+            outcome.Accepted ? ReservationStatus.Accepted : ReservationStatus.Insufficient,
+            outcome.Remaining);
+    }
+
+    public Task ReleaseAsync(int id, string sessionId, CancellationToken ct = default) =>
+        _repo.ReleaseAsync(id, sessionId, ct);
+
+    public Task<CommitOutcome> CommitStockAsync(
+        string sessionId, IReadOnlyList<(int MenuId, int Quantity)> items, CancellationToken ct = default) =>
+        _repo.CommitStockAsync(sessionId, items, ct);
 
     public async Task<MenuItemResponse> CreateAsync(CreateMenuItemRequest request, CancellationToken ct = default)
     {
@@ -120,6 +155,7 @@ public class MenuService : IMenuService
             ? $"/api/menu/{m.Id}/image?v={m.ImageUpdatedAt!.Value.Ticks}"
             : m.ImageUrl,
         StockQuantity = m.StockQuantity,
+        AvailableStock = m.StockQuantity, // overlaid with live availability by the listing/detail reads
         Availability = m.Availability,
         CreatedAt = m.CreatedAt,
         UpdatedAt = m.UpdatedAt,

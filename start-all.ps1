@@ -6,6 +6,7 @@
 #   * Forkly.MenuService    (.NET backend)   -> http://localhost:5100
 #   * Forkly.OrderService   (.NET backend)   -> http://localhost:5208
 #   * Forkly.PaymentService (.NET backend)   -> http://localhost:5300  (mock)
+#   * Forkly.KitchenService (.NET backend)   -> http://localhost:5400
 #   * Forkly-Landing        (Vue, this dir)  -> http://localhost:5173
 #
 # Login, register and account are served IN the landing app now (no separate
@@ -34,7 +35,7 @@ function Free-Port($port) {
 # duplicate instances that never claimed their port linger (and lock their .exe,
 # breaking the next build). Kill any Forkly apphost left running, by name.
 function Stop-StaleForkly {
-    Get-Process -Name 'Forkly.Api', 'Forkly.MenuService', 'Forkly.OrderService', 'Forkly.PaymentService' -ErrorAction SilentlyContinue |
+    Get-Process -Name 'Forkly.Api', 'Forkly.MenuService', 'Forkly.OrderService', 'Forkly.PaymentService', 'Forkly.KitchenService' -ErrorAction SilentlyContinue |
         ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
 }
 
@@ -55,18 +56,19 @@ function Start-App($title, $dir, $cmd) {
     )
 }
 
-Write-Host "Freeing ports 5080, 5100, 5102, 5208, 5300, 5173 and reaping stale Forkly backends ..." -ForegroundColor Cyan
-5080, 5100, 5102, 5208, 5300, 5173 | ForEach-Object { Free-Port $_ }
+Write-Host "Freeing ports 5080, 5100, 5102, 5208, 5300, 5400, 5173 and reaping stale Forkly backends ..." -ForegroundColor Cyan
+5080, 5100, 5102, 5208, 5300, 5400, 5173 | ForEach-Object { Free-Port $_ }
 Stop-StaleForkly
 
 Write-Host "Checking frontend dependencies ..." -ForegroundColor Cyan
 Ensure-Deps $root
 
-Write-Host "Starting Forkly (API + Menu + Order + Payment + landing) ..." -ForegroundColor Cyan
+Write-Host "Starting Forkly (API + Menu + Order + Payment + Kitchen + landing) ..." -ForegroundColor Cyan
 Start-App 'Forkly-API'     (Join-Path $root 'Forkly-Api')                   'dotnet run'
 Start-App 'Forkly-Menu'    (Join-Path $root 'Forkly-MenuApi')               'dotnet run'
 Start-App 'Forkly-Order'   (Join-Path $root 'backend/Forkly.OrderService')  'dotnet run'
 Start-App 'Forkly-Payment' (Join-Path $root 'Forkly-PaymentApi')            'dotnet run'
+Start-App 'Forkly-Kitchen' (Join-Path $root 'Forkly-KitchenApi')            'dotnet run'
 Start-App 'Forkly-Landing' $root                                            'npm run dev'
 
 Write-Host ""
@@ -75,6 +77,7 @@ Write-Host "  API      -> http://localhost:5080"
 Write-Host "  Menu     -> http://localhost:5100   (swagger at /swagger)"
 Write-Host "  Order    -> http://localhost:5208"
 Write-Host "  Payment  -> http://localhost:5300   (mock)"
+Write-Host "  Kitchen  -> http://localhost:5400   (crew board at /kitchen)"
 Write-Host "  Landing  -> http://localhost:5173   (open this one)"
 Write-Host ""
 Write-Host "Give them a few seconds, then open http://localhost:5173."

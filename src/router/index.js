@@ -45,6 +45,13 @@ const routes = [
     component: () => import('../views/ReportView.vue'),
   },
   {
+    // Kitchen display (Zul). Crew (and admins) only — guarded below.
+    path: '/kitchen',
+    name: 'kitchen',
+    component: () => import('../views/KitchenView.vue'),
+    meta: { requiresCrew: true },
+  },
+  {
     // Admin area. The parent carries the role guard (meta.requiresAdmin); children
     // render inside AdminLayout's <RouterView>. Admins are sent here on login.
     path: '/admin',
@@ -79,13 +86,17 @@ const router = createRouter({
 // Roles="admin")] on every admin endpoint). We await whenReady() so a hard refresh
 // of an /admin/* URL waits for session hydration instead of bouncing a real admin.
 router.beforeEach(async (to) => {
-  if (!to.matched.some((r) => r.meta.requiresAdmin)) return true
+  const needsAdmin = to.matched.some((r) => r.meta.requiresAdmin)
+  const needsCrew = to.matched.some((r) => r.meta.requiresCrew)
+  if (!needsAdmin && !needsCrew) return true
 
-  const { state, isAdmin, whenReady } = useAuth()
+  const { state, isAdmin, isCrew, whenReady } = useAuth()
   await whenReady()
 
   if (!state.user) return { name: 'login', query: { redirect: to.fullPath } }
-  if (!isAdmin.value) return { path: '/' }
+  if (needsAdmin && !isAdmin.value) return { path: '/' }
+  // Kitchen is for crew; admins are allowed in too (for testing/oversight).
+  if (needsCrew && !isCrew.value && !isAdmin.value) return { path: '/' }
   return true
 })
 

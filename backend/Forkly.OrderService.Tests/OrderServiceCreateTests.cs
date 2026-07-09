@@ -11,13 +11,18 @@ public class OrderServiceCreateTests
     private sealed class FakeMenuCatalog : IMenuCatalog
     {
         public MenuItemInfo? Result { get; init; }
+        public StockCommit CommitResult { get; init; } = new(true, 0, 0);
         public Task<MenuItemInfo?> GetItemAsync(int menuId, CancellationToken ct = default)
             => Task.FromResult(Result is null ? null : Result with { Id = menuId });
+        public Task<StockCommit> CommitAsync(string sessionId, IReadOnlyList<(int MenuId, int Quantity)> items, CancellationToken ct = default)
+            => Task.FromResult(CommitResult);
     }
 
     private sealed class UnavailableMenuCatalog : IMenuCatalog
     {
         public Task<MenuItemInfo?> GetItemAsync(int menuId, CancellationToken ct = default)
+            => throw new MenuUnavailableException("menu down");
+        public Task<StockCommit> CommitAsync(string sessionId, IReadOnlyList<(int MenuId, int Quantity)> items, CancellationToken ct = default)
             => throw new MenuUnavailableException("menu down");
     }
 
@@ -63,6 +68,23 @@ public class OrderServiceCreateTests
         var sut = new Forkly.OrderService.Services.OrderService(new FakeOrderRepository(), new FakeMenuCatalog { Result = new MenuItemInfo(0, "Sold Out", 10m, false) });
         var req = new CreateOrderRequest { Items = { new CreateOrderItemDto { MenuId = 8, ItemName = "x", Price = 1m, Quantity = 1 } } };
         await Assert.ThrowsAsync<ArgumentException>(() => sut.CreateAsync(1, req));
+    }
+
+    [Fact]
+    public async Task CreateAsync_rejects_when_stock_commit_fails()
+    {
+        var repo = new FakeOrderRepository();
+        var menu = new FakeMenuCatalog
+        {
+            Result = new MenuItemInfo(0, "Teh Sorso", 5m, true),
+            CommitResult = new StockCommit(false, 7, 1), // item 7 short, 1 left
+        };
+        var sut = new Forkly.OrderService.Services.OrderService(repo, menu);
+
+        var req = new CreateOrderRequest { Items = { new CreateOrderItemDto { MenuId = 7, ItemName = "x", Price = 1m, Quantity = 3 } } };
+
+        await Assert.ThrowsAsync<ArgumentException>(() => sut.CreateAsync(1, req));
+        Assert.Null(repo.Saved); // no order persisted when stock is short
     }
 
     [Fact]

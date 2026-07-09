@@ -11,6 +11,10 @@ public class CreateOrderRequest
     [Required]
     [MinLength(1, ErrorMessage = "An order must contain at least one item.")]
     public List<CreateOrderItemDto> Items { get; set; } = new();
+
+    // Cart/session id (X-Forkly-Session) that held the stock while shopping. Passed to
+    // the Menu service at checkout so it decrements stock and clears this cart's holds.
+    public string? SessionId { get; set; }
 }
 
 public class CreateOrderItemDto

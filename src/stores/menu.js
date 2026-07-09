@@ -52,6 +52,27 @@ async function load(force = false) {
   }
 }
 
+// --- Live availability polling -------------------------------------------
+// Buyer pages poll the menu so the "N left" figure reflects other shoppers' cart
+// holds within ~20s. A refcount keeps a single shared timer no matter how many
+// components subscribe; the last one to leave stops it.
+let pollTimer = null
+let subscribers = 0
+
+function startPolling(intervalMs = 20000) {
+  subscribers += 1
+  if (pollTimer) return
+  pollTimer = setInterval(() => load(true), intervalMs)
+}
+
+function stopPolling() {
+  subscribers = Math.max(0, subscribers - 1)
+  if (subscribers === 0 && pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
 export function useMenu() {
-  return { state, load }
+  return { state, load, startPolling, stopPolling }
 }
