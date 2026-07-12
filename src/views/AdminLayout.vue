@@ -17,6 +17,8 @@ const links = [
   { to: { name: 'admin-dashboard' }, label: 'Dashboard', icon: '▦' },
   { to: { name: 'admin-users' }, label: 'Users', icon: '◉' },
   { to: { name: 'admin-orders' }, label: 'Orders', icon: '🧾' },
+  // Same live kitchen board the crew uses (standalone page — admins can work it too).
+  { to: { name: 'kitchen' }, label: 'Kitchen', icon: '👨‍🍳' },
   { to: { name: 'admin-reports' }, label: 'Sales reports', icon: '📈' },
   { to: { name: 'admin-menu' }, label: 'Menu', icon: '🍽' },
 ]

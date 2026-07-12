@@ -5,7 +5,7 @@ import { isKitchenApiConfigured, fetchQueue, setStatus } from '../services/kitch
 import { useAuth } from '../stores/auth.js'
 
 const router = useRouter()
-const { logout } = useAuth()
+const { logout, isAdmin } = useAuth()
 const configured = isKitchenApiConfigured()
 
 const tickets = ref([])
@@ -80,6 +80,7 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
       <div class="kds-head-right">
         <span class="live-dot" aria-hidden="true"></span>
         <span class="live-text">Auto-refresh</span>
+        <RouterLink v-if="isAdmin" class="btn btn-ghost btn-sm" :to="{ name: 'admin-dashboard' }">← Admin</RouterLink>
         <button type="button" class="btn btn-ghost btn-sm" @click="onLogout">Log out</button>
       </div>
     </header>
