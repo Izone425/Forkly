@@ -25,6 +25,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Forkly-PaymentApi", "Forkly
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Forkly.PaymentService", "Forkly-PaymentApi\Forkly.PaymentService.csproj", "{E3AD4BB9-AFB2-47DD-B945-79E0D57A4E11}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Forkly-TrackerApi", "Forkly-TrackerApi", "{109EA9D6-9D0F-488A-8385-14BD8ACA7EDD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Forkly.TrackerService", "Forkly-TrackerApi\Forkly.TrackerService.csproj", "{BC170A84-BF65-463E-B6D8-603E9E6AFEBE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -101,6 +105,18 @@ Global
 		{E3AD4BB9-AFB2-47DD-B945-79E0D57A4E11}.Release|x64.Build.0 = Release|Any CPU
 		{E3AD4BB9-AFB2-47DD-B945-79E0D57A4E11}.Release|x86.ActiveCfg = Release|Any CPU
 		{E3AD4BB9-AFB2-47DD-B945-79E0D57A4E11}.Release|x86.Build.0 = Release|Any CPU
+		{BC170A84-BF65-463E-B6D8-603E9E6AFEBE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BC170A84-BF65-463E-B6D8-603E9E6AFEBE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BC170A84-BF65-463E-B6D8-603E9E6AFEBE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{BC170A84-BF65-463E-B6D8-603E9E6AFEBE}.Debug|x64.Build.0 = Debug|Any CPU
+		{BC170A84-BF65-463E-B6D8-603E9E6AFEBE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{BC170A84-BF65-463E-B6D8-603E9E6AFEBE}.Debug|x86.Build.0 = Debug|Any CPU
+		{BC170A84-BF65-463E-B6D8-603E9E6AFEBE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BC170A84-BF65-463E-B6D8-603E9E6AFEBE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BC170A84-BF65-463E-B6D8-603E9E6AFEBE}.Release|x64.ActiveCfg = Release|Any CPU
+		{BC170A84-BF65-463E-B6D8-603E9E6AFEBE}.Release|x64.Build.0 = Release|Any CPU
+		{BC170A84-BF65-463E-B6D8-603E9E6AFEBE}.Release|x86.ActiveCfg = Release|Any CPU
+		{BC170A84-BF65-463E-B6D8-603E9E6AFEBE}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -111,5 +127,6 @@ Global
 		{F0E0DCA6-F67D-406C-BB0D-4CFBF36425EE} = {1AE8ACA6-933B-BF2A-3671-3E2EAC007D16}
 		{97D1B7A4-DDD0-4E93-995F-8EBDAB0573C0} = {8185C394-4223-430A-BA28-3B79EEE7B6CB}
 		{E3AD4BB9-AFB2-47DD-B945-79E0D57A4E11} = {11CCBDF1-00A1-4CEE-9799-82B45A6371D2}
+		{BC170A84-BF65-463E-B6D8-603E9E6AFEBE} = {109EA9D6-9D0F-488A-8385-14BD8ACA7EDD}
 	EndGlobalSection
 EndGlobal

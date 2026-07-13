@@ -5,8 +5,6 @@ import AboutSection from '../components/AboutSection.vue'
 import MenuPreview from '../components/MenuPreview.vue'
 import ContactSection from '../components/ContactSection.vue'
 import AppFooter from '../components/AppFooter.vue'
-import FloatingCart from '../components/FloatingCart.vue'
-import ToastHost from '../components/ToastHost.vue'
 </script>
 
 <template>
@@ -19,9 +17,6 @@ import ToastHost from '../components/ToastHost.vue'
   </main>
   <AppFooter />
 
-  <!-- Floating cart (bottom-left): opens the order page with items kept. -->
-  <FloatingCart />
-
-  <!-- Toasts (e.g. "Only N left" when stock is short). -->
-  <ToastHost />
+  <!-- The floating cart/active-order bubbles and the toast host are mounted
+       app-wide in App.vue, so they survive navigation off this page. -->
 </template>

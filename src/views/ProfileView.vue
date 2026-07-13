@@ -2,7 +2,6 @@
 import { ref, onMounted, computed } from 'vue'
 import FormField from '../components/FormField.vue'
 import { useRouter, RouterLink } from 'vue-router'
-import { config } from '../config.js'
 import {
   me,
   updateProfile,
@@ -16,6 +15,14 @@ import {
   getToken,
 } from '../services/authApi.js'
 import { fetchOrderHistory } from '../services/orderGateway.js'
+import {
+  statusLabel,
+  statusClass,
+  paymentLabel,
+  paymentClass,
+  canPay,
+  money,
+} from '../utils/orderStatus.js'
 import { useAuth } from '../stores/auth.js'
 
 const router = useRouter()
@@ -56,29 +63,6 @@ const orders = ref([])
 const ordersLoading = ref(true)
 const ordersErr = ref('')
 
-// Fulfilment status (payment is shown separately below).
-const STATUS_LABELS = {
-  Pending: 'Pending',
-  Preparing: 'Preparing',
-  Completed: 'Completed',
-  OutForDelivery: 'Out for delivery',
-  Delivered: 'Delivered',
-  Cancelled: 'Cancelled',
-}
-const statusLabel = (s) => STATUS_LABELS[s] || s
-const statusClass = (s) => `badge-${(s || '').toLowerCase()}`
-
-// Payment status — separate from fulfilment, so a paid order keeps showing "Paid".
-const PAYMENT_LABELS = { Unpaid: 'Unpaid', Paid: 'Paid' }
-const paymentLabel = (s) => PAYMENT_LABELS[s] || s
-const paymentClass = (s) => `badge-pay-${(s || '').toLowerCase()}`
-
-// Show "Pay now" only when the order still needs paying and payment is live.
-const canPay = (o) => config.paymentReady && o.paymentStatus !== 'Paid' && o.status !== 'Cancelled'
-function money(amount, currency = 'MYR') {
-  const symbol = currency === 'MYR' ? 'RM' : `${currency} `
-  return `${symbol}${Number(amount || 0).toFixed(2)}`
-}
 function orderDate(iso) {
   const d = new Date(iso)
   return isNaN(d) ? '' : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
@@ -626,19 +610,7 @@ textarea.field-input { resize: vertical; }
   font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.4px; color: var(--color-muted);
 }
-.badge {
-  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.2px;
-  padding: 3px 10px; border-radius: 999px; text-transform: uppercase;
-}
-.badge-delivered { color: var(--color-success); background: #f0fdf4; border: 1px solid #bbf7d0; }
-.badge-completed { color: var(--color-success); background: #f0fdf4; border: 1px solid #bbf7d0; }
-.badge-preparing { color: var(--color-primary); background: var(--color-primary-soft); border: 1px solid #bfdbfe; }
-/* Payment badges (shown alongside the fulfilment badge) */
-.badge-pay-paid { color: var(--color-success); background: #ecfdf5; border: 1px solid #a7f3d0; }
-.badge-pay-unpaid { color: #92400e; background: #fffbeb; border: 1px solid #fde68a; }
-.badge-outfordelivery { color: #92400e; background: #fffbeb; border: 1px solid #fde68a; }
-.badge-pending { color: var(--color-muted); background: #f1f5f9; border: 1px solid var(--color-border); }
-.badge-cancelled { color: var(--color-danger); background: #fef2f2; border: 1px solid #fecaca; }
+/* .badge / .badge-* are shared — see style.css */
 .order-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .order-item { display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--color-ink); }
 .oi-qty { color: var(--color-muted); }

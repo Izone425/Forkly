@@ -1,11 +1,10 @@
 <script setup>
 // Full-page "My Account" (/account). The profile UI now lives in-app (ProfileView,
 // migrated from the former Forkly-Auth app) — no iframe. We just frame it with the
-// landing header and the floating "go to your order" cart.
+// landing header; the floating cart/order bubbles come from App.vue.
 import { watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AppHeader from '../components/AppHeader.vue'
-import FloatingCart from '../components/FloatingCart.vue'
 import ProfileView from './ProfileView.vue'
 import { useAuth } from '../stores/auth.js'
 
@@ -26,7 +25,6 @@ watch(isLoggedIn, (loggedIn) => {
     <main class="account-main">
       <ProfileView />
     </main>
-    <FloatingCart />
   </div>
 </template>
 
