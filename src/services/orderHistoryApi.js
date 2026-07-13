@@ -1,45 +1,59 @@
 // =========================================================
-// Forkly — Order history API
+// Forkly — Order history API (order page "Most Recent Orders")
 //
-// Returns the signed-in user's previous orders. Currently backed by mock data;
-// the shape matches the order microservice so this is the single place to wire
-// the real call later.
+// Reads the signed-in user's orders from the ORDER service (Hanif) — the single
+// source of truth for orders + status. The User API keeps a separate (empty)
+// table, so history must be read here. Mapped to the shape OrderHistoryCard
+// expects: { orderId, userId, orderDate, status, totalAmount, orderItems }.
 // =========================================================
 
 import { config } from '../config.js'
-import { MOCK_ORDER_HISTORY } from '../data/orderHistory.js'
+import { getToken } from './authApi.js'
 
-/**
- * Fetch order history for a user.
- *
- * @param {string} [userId]
- * @returns {Promise<Array>} list of orders (newest first)
- */
-export async function getOrderHistory(userId) {
-  // TODO: Fetch recent orders list
-  // GET /orders/user/{userId}/recent
-  // (or the order service's history endpoint, e.g.
-  //  GET {orderApiBase}/v1/users/{userId}/orders)
-  void config // referenced so the integration point is obvious
+// OrderResponse (Order service) -> the order-history card shape.
+function mapOrder(o) {
+  return {
+    orderId: o.reference || `FRK-${o.id}`,
+    orderNumericId: o.id,
+    userId: o.userId,
+    orderDate: o.createdAt,
+    status: o.status,
+    paymentStatus: o.paymentStatus,
+    totalAmount: Number(o.total || 0),
+    orderItems: (o.items || []).map((i) => ({
+      menuId: i.menuId,
+      menuName: i.itemName,
+      quantity: i.quantity,
+      price: Number(i.price || 0),
+    })),
+  }
+}
 
-  const orders = userId
-    ? MOCK_ORDER_HISTORY.filter((o) => o.userId === userId)
-    : MOCK_ORDER_HISTORY
-
-  // Newest first.
-  const sorted = [...orders].sort((a, b) => (a.orderDate < b.orderDate ? 1 : -1))
-  return Promise.resolve(sorted)
+async function getJson(path) {
+  const base = config.orderApiBase.replace(/\/+$/, '')
+  if (!base) return null
+  const token = getToken()
+  const res = await fetch(`${base}${path}`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  })
+  if (!res.ok) throw new Error(`Order service responded ${res.status}`)
+  return res.json()
 }
 
 /**
- * Fetch full details for one order (used by reorder / details view).
- * @param {string} orderId
- * @returns {Promise<object|null>}
+ * The signed-in user's most recent orders (newest first, top 3).
+ * @param {number} userId  integer user id (UserDto.id / JWT `sub`)
+ */
+export async function getOrderHistory(userId) {
+  if (!config.orderApiBase || userId == null) return []
+  const data = await getJson(`/api/orders/user/${userId}/recent`)
+  return (Array.isArray(data) ? data : []).map(mapOrder)
+}
+
+/**
+ * Full details for one order. `orderId` is the numeric Order service id.
  */
 export async function getOrderDetails(orderId) {
-  // TODO: Fetch recent order for reorder
-  // GET /orders/{orderId}
-  // OR gRPC: OrderService.GetOrderDetails(orderId)
-  void config
-  return Promise.resolve(MOCK_ORDER_HISTORY.find((o) => o.orderId === orderId) ?? null)
+  const data = await getJson(`/api/orders/${orderId}`)
+  return data ? mapOrder(data) : null
 }

@@ -63,8 +63,15 @@ function reorder(order) {
 <template>
   <!-- Only shown to signed-in users — recent orders come from their profile. -->
   <section v-if="isLoggedIn" class="history">
-    <h2 class="history-title">Most Recent Orders</h2>
-    <p class="history-sub">Your latest orders — view details or reorder in one tap.</p>
+    <div class="history-topbar">
+      <div>
+        <h2 class="history-title">Most Recent Orders</h2>
+        <p class="history-sub">Your latest orders — view details or reorder in one tap.</p>
+      </div>
+      <RouterLink :to="{ name: 'account' }" class="history-viewall" title="See your full order history in My Account">
+        View all in My Account →
+      </RouterLink>
+    </div>
 
     <p v-if="loading" class="history-state">Loading your orders…</p>
     <p v-else-if="error" class="history-state">{{ error }}</p>
@@ -88,6 +95,13 @@ function reorder(order) {
 
 <style scoped>
 .history { margin: 0 0 40px; }
+.history-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
 .history-title {
   margin: 0 0 4px;
   font-size: clamp(1.4rem, 3.5vw, 1.8rem);
@@ -95,7 +109,20 @@ function reorder(order) {
   color: var(--color-ink);
   letter-spacing: -0.3px;
 }
-.history-sub { margin: 0 0 24px; color: var(--color-muted); }
+.history-sub { margin: 0; color: var(--color-muted); }
+.history-viewall {
+  flex: none;
+  margin-top: 6px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.history-viewall:hover { text-decoration: underline; }
+@media (max-width: 560px) {
+  .history-topbar { flex-direction: column; gap: 8px; }
+}
 
 .history-state { color: var(--color-muted); }
 
