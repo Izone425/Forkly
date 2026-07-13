@@ -15,6 +15,8 @@
   --color-bg: #ffffff;
   --color-surface: #f8fafc;        /* light grey alt section */
   --color-border: #e2e8f0;
+  --color-success: #059669;        /* delivered / paid */
+  --color-danger: #dc2626;         /* cancelled / errors */
 
   /* Layout */
   --maxw: 1120px;
@@ -33,6 +35,20 @@
 *::after { box-sizing: border-box; }
 
 html { scroll-behavior: smooth; }
+
+/* Honour a system-level request for less motion. The active-orders panel loops an
+   animated icon per row, and looping motion is exactly what motion sensitivity reacts
+   to — so kill it, along with every other animation and transition in the app. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 body {
   margin: 0;
@@ -95,6 +111,27 @@ a { color: inherit; text-decoration: none; }
   border-color: var(--color-primary);
   color: var(--color-primary);
 }
+
+/* --------------------------- Order status badges (shared) --------------------------- */
+/* Used by the account order history and the floating active-orders panel.
+   The class names are produced by utils/orderStatus.js. */
+.badge {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.2px;
+  padding: 3px 10px; border-radius: 999px; text-transform: uppercase;
+}
+.badge-delivered { color: var(--color-success); background: #f0fdf4; border: 1px solid #bbf7d0; }
+/* The "Ready" pill — the class is named for the raw status (`Completed`), which the
+   Order service uses to mean "kitchen is done", not "order is finished". Deliberately a
+   different colour from .badge-delivered: both appear in the account order history, and
+   they are not the same state. */
+.badge-completed { color: #0f766e; background: #f0fdfa; border: 1px solid #99f6e4; }
+.badge-preparing { color: var(--color-primary); background: var(--color-primary-soft); border: 1px solid #bfdbfe; }
+.badge-outfordelivery { color: #92400e; background: #fffbeb; border: 1px solid #fde68a; }
+.badge-pending { color: var(--color-muted); background: #f1f5f9; border: 1px solid var(--color-border); }
+.badge-cancelled { color: var(--color-danger); background: #fef2f2; border: 1px solid #fecaca; }
+/* Payment badges (shown alongside the fulfilment badge) */
+.badge-pay-paid { color: var(--color-success); background: #ecfdf5; border: 1px solid #a7f3d0; }
+.badge-pay-unpaid { color: #92400e; background: #fffbeb; border: 1px solid #fde68a; }
 
 /* --------------------------- Section helpers (shared) --------------------------- */
 /* scroll-margin offsets the sticky header when navigating via #anchors. */

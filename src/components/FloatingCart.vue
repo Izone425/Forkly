@@ -20,11 +20,10 @@ function openOrder() {
 </template>
 
 <style scoped>
+/* FloatingActions owns the screen corner. `relative` stays: the badge below is
+   absolutely positioned and needs a containing block. */
 .cart-fab {
-  position: fixed;
-  right: 24px;
-  bottom: 24px;
-  z-index: 50;
+  position: relative;
   width: 62px;
   height: 62px;
   border: none;
@@ -61,6 +60,6 @@ function openOrder() {
 }
 
 @media (max-width: 720px) {
-  .cart-fab { right: 16px; bottom: 16px; width: 56px; height: 56px; }
+  .cart-fab { width: 56px; height: 56px; }
 }
 </style>

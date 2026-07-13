@@ -4,7 +4,6 @@ import AppHeader from '../components/AppHeader.vue'
 import MenuItemCard from '../components/MenuItemCard.vue'
 import CartSummary from '../components/CartSummary.vue'
 import OrderHistoryList from '../components/OrderHistoryList.vue'
-import ToastHost from '../components/ToastHost.vue'
 import { useMenu } from '../stores/menu.js'
 import { useCart } from '../stores/cart.js'
 import { useToast } from '../stores/toast.js'
@@ -85,7 +84,7 @@ const grouped = computed(() => {
       </div>
     </main>
 
-    <ToastHost />
+    <!-- ToastHost is mounted app-wide in App.vue. -->
   </div>
 </template>
 

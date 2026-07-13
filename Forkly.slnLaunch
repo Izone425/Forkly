@@ -25,6 +25,10 @@
       {
         "Path": "Forkly-PaymentApi\\Forkly.PaymentService.csproj",
         "Action": "Start"
+      },
+      {
+        "Path": "Forkly-TrackerApi\\Forkly.TrackerService.csproj",
+        "Action": "Start"
       }
     ]
   }
